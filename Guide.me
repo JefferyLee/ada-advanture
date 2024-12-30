@@ -1,0 +1,179 @@
+# Cloudflare Pages项目开发和部署流程
+
+## 准备工作
+
+1. 安装必要的工具:
+   - 安装 [VS Code](https://code.visualstudio.com/)
+   - 安装 [Git](https://git-scm.com/)
+   - 安装 [Node.js](https://nodejs.org/)
+
+2. 注册账户:
+   - [GitHub](https://github.com/)账户
+   - [Cloudflare](https://www.cloudflare.com/)账户
+
+## 项目设置
+
+3. 在GitHub上创建新仓库:
+   - 登录GitHub
+   - 点击 "New repository"
+   - 填写仓库名称,选择公开或私有
+   - 初始化仓库with README
+
+4. 克隆仓库到本地:
+   ```
+   git clone https://github.com/your-username/your-repo-name.git
+   cd your-repo-name
+   ```
+
+5. 在VS Code中打开项目:
+   ```
+   code .
+   ```
+
+## 开发环境配置
+
+6. 初始化Node.js项目:
+   ```
+   npm init -y
+   ```
+
+7. 安装必要的依赖:
+   ```
+   npm install @cloudflare/wrangler -g
+   npm install react react-dom
+   npm install --save-dev vite @vitejs/plugin-react
+   ```
+
+8. 配置Vite (创建 `vite.config.js`):
+   ```javascript
+   import { defineConfig } from 'vite'
+   import react from '@vitejs/plugin-react'
+
+   export default defineConfig({
+     plugins: [react()],
+   })
+   ```
+
+9. 创建基本的React应用结构:
+   - 创建 `src` 目录
+   - 在 `src` 中创建 `App.jsx` 和 `main.jsx`
+
+10. 更新 `package.json` 的scripts:
+    ```json
+    "scripts": {
+      "dev": "vite",
+      "build": "vite build",
+      "preview": "vite preview"
+    }
+    ```
+
+## 添加Cloudflare Pages Functions
+
+11. 创建 `functions` 目录:
+    ```
+    mkdir functions
+    ```
+
+12. 在 `functions` 目录中创建示例函数 (如 `api/hello.js`):
+    ```javascript
+    export function onRequest(context) {
+      return new Response("Hello from Cloudflare Pages Function!");
+    }
+    ```
+
+## 本地开发和测试
+
+13. 启动开发服务器:
+    ```
+    npm run dev
+    ```
+
+14. 使用Wrangler测试Functions:
+    ```
+    wrangler pages dev -- npm run dev
+    ```
+
+## 配置GitHub Actions for CI/CD
+
+15. 在项目根目录创建 `.github/workflows` 目录
+
+16. 在该目录中创建 `deploy.yml`:
+    ```yaml
+    name: Deploy to Cloudflare Pages
+
+    on:
+      push:
+        branches: [main]
+
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v2
+          - name: Use Node.js
+            uses: actions/setup-node@v2
+            with:
+              node-version: '14'
+          - run: npm ci
+          - run: npm run build
+          - name: Publish to Cloudflare Pages
+            uses: cloudflare/pages-action@1
+            with:
+              apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+              accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+              projectName: your-project-name
+              directory: dist
+    ```
+
+## Cloudflare Pages配置
+
+17. 登录Cloudflare Dashboard
+
+18. 创建新的Pages项目:
+    - 连接到您的GitHub仓库
+    - 配置构建设置:
+      - 构建命令: `npm run build`
+      - 输出目录: `dist`
+
+19. 在Cloudflare生成API令牌:
+    - 记下Account ID
+    - 创建具有Pages部署权限的API令牌
+
+20. 添加GitHub Secrets:
+    - 在GitHub仓库设置中,添加以下secrets:
+      - `CLOUDFLARE_API_TOKEN`
+      - `CLOUDFLARE_ACCOUNT_ID`
+
+## 开发工作流
+
+21. 在VS Code中进行开发
+
+22. 提交并推送更改:
+    ```
+    git add .
+    git commit -m "Your commit message"
+    git push origin main
+    ```
+
+23. GitHub Actions将自动触发部署
+
+24. 在Cloudflare Dashboard中监控部署状态
+
+## 持续集成和部署
+
+25. 每次推送到main分支时,GitHub Actions都会自动构建和部署您的项目
+
+26. 在Cloudflare Dashboard中查看部署历史和详情
+
+27. 测试已部署的应用和Functions
+
+## 维护和更新
+
+28. 定期更新依赖:
+    ```
+    npm update
+    ```
+
+29. 监控Cloudflare Analytics以了解性能和使用情况
+
+30. 根据需要调整Functions和前端代码
