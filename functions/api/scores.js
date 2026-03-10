@@ -1,5 +1,8 @@
 export async function onRequestDelete({ env, request }) {
   const token = request.headers.get('Authorization')?.replace('Bearer ', '');
+  if (!env.ADMIN_TOKEN) {
+    return Response.json({ error: 'ADMIN_TOKEN not configured' }, { status: 500 });
+  }
   if (!token || token !== env.ADMIN_TOKEN) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }

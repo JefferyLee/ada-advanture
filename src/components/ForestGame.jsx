@@ -6,7 +6,7 @@ import goldenMushroomSoundFile from '../assets/audio/golden-mushroom.mp3';
 import adaImage from '../assets/image/girl-1.png';
 import '../styles/ForestGame.css';
 
-const ForestGame = () => {
+const ForestGame = ({ onPlayerNameChange }) => {
   // Refs
   const canvasRef = useRef(null);
   const gameObjectsRef = useRef({
@@ -35,6 +35,8 @@ const ForestGame = () => {
     bombs: 0,
   });
   const [showHighScores, setShowHighScores] = useState(false);
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
   const [controls, setControls] = useState({
     left: false,
     right: false,
@@ -334,11 +336,13 @@ const ForestGame = () => {
   const startGame = useCallback(() => {
     if (gameState.playerName) {
       initGame();
+      setControls({ left: false, right: false, up: false, bomb: false });
       setGameState(prev => ({ ...prev, gameStarted: true, gameOver: false, score: 0, totaltrees: 0, bombs: 0 }));
+      onPlayerNameChange?.(gameState.playerName);
     } else {
       alert("Please enter your name before starting the game.");
     }
-  }, [gameState.playerName, initGame]);
+  }, [gameState.playerName, initGame, onPlayerNameChange]);
 
   const handleNameSubmit = useCallback((e) => {
     e.preventDefault();
@@ -351,6 +355,20 @@ const ForestGame = () => {
     }
   }, [gameState.playerName, startGame, initGame]);
   
+  const handleClearLeaderboard = useCallback(() => {
+    fetch('/api/scores', {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${adminPassword}` },
+    })
+      .then(res => res.json())
+      .then(data => alert(data.ok ? 'Leaderboard cleared.' : 'Wrong password.'))
+      .catch(() => alert('Failed to connect.'))
+      .finally(() => {
+        setShowPasswordPrompt(false);
+        setAdminPassword('');
+      });
+  }, [adminPassword]);
+
   const handleCanvasClick = useCallback((event) => {
     if (gameState.gameOver) {
       const canvas = canvasRef.current;
@@ -370,17 +388,12 @@ const ForestGame = () => {
 
       if (inLeft  && inRow1) startGame();
       if (inRight && inRow1) setShowHighScores(true);
-      if (inLeft  && inRow2) setGameState(prev => ({ ...prev, gameStarted: false, playerName: '' }));
+      if (inLeft  && inRow2) {
+        setGameState(prev => ({ ...prev, gameStarted: false, playerName: '' }));
+        onPlayerNameChange?.('');
+      }
       if (inRight && inRow2) {
-        const password = window.prompt('Enter admin password:');
-        if (password === null) return;
-        fetch('/api/scores', {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${password}` },
-        })
-          .then(res => res.json())
-          .then(data => alert(data.ok ? 'Leaderboard cleared.' : 'Wrong password.'))
-          .catch(() => alert('Failed to connect.'));
+        setShowPasswordPrompt(true);
       }
     }
   }, [gameState.gameOver, startGame]);
@@ -530,6 +543,26 @@ const ForestGame = () => {
         <HighScores
           onClose={() => setShowHighScores(false)}
         />
+      )}
+
+      {showPasswordPrompt && (
+        <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.75)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:20 }}>
+          <div style={{ background:'#222', color:'white', padding:'24px', borderRadius:'10px', textAlign:'center', minWidth:'260px' }}>
+            <p style={{ marginBottom:'12px' }}>Enter admin password:</p>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={e => setAdminPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleClearLeaderboard()}
+              autoFocus
+              style={{ fontSize:'16px', padding:'8px', width:'100%', boxSizing:'border-box', marginBottom:'16px' }}
+            />
+            <div style={{ display:'flex', gap:'10px', justifyContent:'center' }}>
+              <button onClick={handleClearLeaderboard} style={{ padding:'8px 20px', background:'green', color:'white', border:'none', borderRadius:'5px', cursor:'pointer' }}>Confirm</button>
+              <button onClick={() => { setShowPasswordPrompt(false); setAdminPassword(''); }} style={{ padding:'8px 20px', background:'#555', color:'white', border:'none', borderRadius:'5px', cursor:'pointer' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

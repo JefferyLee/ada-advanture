@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import ForestGame from './components/ForestGame';
+import OnlineChat from './components/OnlineChat';
 
 function App() {
-    return (
-        <div>
-            <ForestGame />
-        </div>
-    )
+  const [playerName, setPlayerName] = useState('');
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'20px 0' }}>
+      <ForestGame onPlayerNameChange={setPlayerName} />
+      <OnlineChat playerName={playerName} />
+    </div>
+  );
 }
 
-export default App
+export default App;
