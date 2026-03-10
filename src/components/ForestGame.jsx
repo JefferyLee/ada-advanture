@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import HighScores from './HighScores';
-import { updateHighScores } from './Utils';
 import bgMusicFile from '../assets/audio/Walking-in-the-forest-in-morning.mp3';
 import redMushroomSoundFile from '../assets/audio/red-mushroom.mp3';
 import goldenMushroomSoundFile from '../assets/audio/golden-mushroom.mp3';
@@ -34,7 +33,6 @@ const ForestGame = () => {
     totaltrees: 0,
     score: 0,
     bombs: 0,
-    highScores: [],
   });
   const [showHighScores, setShowHighScores] = useState(false);
   const [controls, setControls] = useState({
@@ -46,17 +44,23 @@ const ForestGame = () => {
 
   // Game Logic Functions
   const endGame = useCallback(() => {
+    const finalScore = gameObjectsRef.current.score;
+
     setGameState(prev => ({
       ...prev,
       gameOver: true,
-      highScores: updateHighScores(prev.score, prev.highScores),
-      score: gameObjectsRef.current.score,
-      bombs: gameObjectsRef.current.bombs,
-      totaltrees: gameObjectsRef.current.totaltrees
+      score:      gameObjectsRef.current.score,
+      bombs:      gameObjectsRef.current.bombs,
+      totaltrees: gameObjectsRef.current.totaltrees,
     }));
     bgMusicRef.current.pause();
-    // TODO: Implement game over sound
-  }, []);
+
+    fetch('/api/scores', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name: gameState.playerName, score: finalScore }),
+    }).catch(err => console.error('Failed to submit score:', err));
+  }, [gameState.playerName]);
 
   // Helper function to check collision between two rectangles
   const collision = useCallback((rect1, rect2) => {
@@ -224,11 +228,11 @@ const ForestGame = () => {
     ctx.fillStyle = 'green';
     ctx.fillRect(x, y, width, height);
     ctx.fillStyle = 'white';
-    ctx.font = '24px Arial';
+    ctx.font = '20px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(text, x + width / 2, y + height / 2 + 8);
+    ctx.fillText(text, x + width / 2, y + height / 2 + 7);
   }, []);
-  
+
   const drawGameOverScreen = useCallback((canvas, ctx) => {
     ctx.fillStyle = 'white';
     ctx.font = 'bold 48px Arial';
@@ -242,8 +246,14 @@ const ForestGame = () => {
     ctx.fillText(`Trees Passed: ${gameState.totaltrees}`, canvas.width / 2, canvas.height / 2 + 30);
     ctx.fillText(`Bombs Used: ${gameState.bombs}`, canvas.width / 2, canvas.height / 2 + 60);
 
-    drawButton(ctx, 'Restart', canvas.width / 2 - 100, canvas.height * 2 / 3, 200, 50);
-    drawButton(ctx, 'High Scores', canvas.width / 2 - 100, canvas.height * 2 / 3 + 70, 200, 50);
+    const lx   = canvas.width / 2 - 190;
+    const rx   = canvas.width / 2 + 10;
+    const row1 = canvas.height * 0.65;
+    const row2 = row1 + 50;
+    drawButton(ctx, 'Restart',           lx, row1, 180, 40);
+    drawButton(ctx, 'High Scores',       rx, row1, 180, 40);
+    drawButton(ctx, 'Change Player',     lx, row2, 180, 40);
+    drawButton(ctx, 'Clear Leaderboard', rx, row2, 180, 40);
   }, [gameState.score, gameState.totaltrees, gameState.bombs, drawButton]);
   
   const draw = useCallback(() => {
@@ -347,15 +357,30 @@ const ForestGame = () => {
       const rect = canvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       const y = event.clientY - rect.top;
-      
-      if (x > canvas.width / 2 - 100 && x < canvas.width / 2 + 100 &&
-          y > canvas.height * 2 / 3  && y < canvas.height * 2 / 3 + 50 ) {
-        startGame();
-      }
 
-      if (x > canvas.width / 2 - 100 && x < canvas.width / 2 + 100 &&
-          y > canvas.height * 2 / 3 + 70 && y < canvas.height * 2 / 3 + 120) {
-        setShowHighScores(true);
+      const lx   = canvas.width / 2 - 190;
+      const rx   = canvas.width / 2 + 10;
+      const row1 = canvas.height * 0.65;
+      const row2 = row1 + 50;
+
+      const inLeft  = x > lx && x < lx + 180;
+      const inRight = x > rx && x < rx + 180;
+      const inRow1  = y > row1 && y < row1 + 40;
+      const inRow2  = y > row2 && y < row2 + 40;
+
+      if (inLeft  && inRow1) startGame();
+      if (inRight && inRow1) setShowHighScores(true);
+      if (inLeft  && inRow2) setGameState(prev => ({ ...prev, gameStarted: false, playerName: '' }));
+      if (inRight && inRow2) {
+        const password = window.prompt('Enter admin password:');
+        if (password === null) return;
+        fetch('/api/scores', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${password}` },
+        })
+          .then(res => res.json())
+          .then(data => alert(data.ok ? 'Leaderboard cleared.' : 'Wrong password.'))
+          .catch(() => alert('Failed to connect.'));
       }
     }
   }, [gameState.gameOver, startGame]);
@@ -502,15 +527,9 @@ const ForestGame = () => {
       )}
 
       {showHighScores && (
-        <HighScores 
-          scores={gameState.highScores} 
-          onClose={() => setShowHighScores(false)} 
+        <HighScores
+          onClose={() => setShowHighScores(false)}
         />
-      )}
-      {gameState.gameOver && (
-        <div className="game-over-overlay">
-          Game Over
-        </div>
       )}
     </div>
   );
