@@ -6,7 +6,7 @@ function App() {
   const [playerName, setPlayerName] = useState('');
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', padding:'20px 0' }}>
+    <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'center', minHeight:'calc(100vh - 220px)', paddingTop:'8px' }}>
       <ForestGame onPlayerNameChange={setPlayerName} />
       <OnlineChat playerName={playerName} />
     </div>

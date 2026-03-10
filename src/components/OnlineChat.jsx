@@ -68,7 +68,7 @@ function OnlineChat({ playerName }) {
   }, [inputText, displayName, location]);
 
   return (
-    <div style={{ display:'flex', width:'800px', height:'220px', marginTop:'10px', background:'#12122a', borderRadius:'8px', overflow:'hidden', color:'white', fontFamily:'Arial, sans-serif', fontSize:'13px' }}>
+    <div style={{ position:'fixed', bottom:0, left:'50%', transform:'translateX(-50%)', display:'flex', width:'800px', height:'220px', background:'#12122a', borderTop:'1px solid #2a2a4a', overflow:'hidden', color:'white', fontFamily:'Arial, sans-serif', fontSize:'13px', zIndex:100 }}>
 
       {/* Online players */}
       <div style={{ width:'190px', borderRight:'1px solid #2a2a4a', padding:'10px', overflowY:'auto', flexShrink:0 }}>
