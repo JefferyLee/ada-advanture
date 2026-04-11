@@ -32,7 +32,7 @@ const drawButton = (ctx, text, x, y, w, h) => {
   ctx.fillText(text, x + w / 2, y + h / 2 + 7);
 };
 
-const ForestGame = ({ onPlayerNameChange }) => {
+const ForestGame = ({ playerName: propPlayerName }) => {
   // ── Refs (read inside game loop, no re-renders needed) ──────────────────
   const canvasRef      = useRef(null);
   const gameObjectsRef = useRef({
@@ -238,8 +238,8 @@ const ForestGame = ({ onPlayerNameChange }) => {
   }, []);
 
   const startGame = useCallback(() => {
-    const name = playerNameRef.current;
-    if (!name) { alert('Please enter your name before starting the game.'); return; }
+    playerNameRef.current = propPlayerName || '';
+    if (!playerNameRef.current) return;
     initGame();
     controlsRef.current = { left: false, right: false, up: false, bomb: false };
     frameCountRef.current = 0;
@@ -247,19 +247,14 @@ const ForestGame = ({ onPlayerNameChange }) => {
     gameStartedRef.current = true;
     bgMusicRef.current.play().catch(() => {});
     setGameState(prev => ({ ...prev, gameStarted: true, gameOver: false, score: 0, totaltrees: 0, bombs: 0 }));
-    onPlayerNameChange?.(name);
-  }, [initGame, onPlayerNameChange]);
+  }, [initGame, propPlayerName]);
 
-  const handleNameSubmit = useCallback((e) => {
-    e.preventDefault();
-    const name = gameState.playerName;
-    if (name.length > 0 && name.length <= 10) {
-      playerNameRef.current = name;
+  // Auto-start on mount since name comes from parent
+  useEffect(() => {
+    if (propPlayerName && !gameStartedRef.current) {
       startGame();
-    } else {
-      alert('Name must be between 1 and 10 characters.');
     }
-  }, [gameState.playerName, startGame]);
+  }, [propPlayerName, startGame]);
 
   const handleClearLeaderboard = useCallback(() => {
     fetch('/api/scores', {
@@ -287,13 +282,11 @@ const ForestGame = ({ onPlayerNameChange }) => {
     if (inLeft  && inRow1) startGame();
     if (inRight && inRow1) setShowHighScores(true);
     if (inLeft  && inRow2) {
-      gameStartedRef.current = false;
-      playerNameRef.current  = '';
-      setGameState(prev => ({ ...prev, gameStarted: false, playerName: '' }));
-      onPlayerNameChange?.('');
+      // "Change Player" — go back to hub (reload page)
+      window.location.reload();
     }
     if (inRight && inRow2) setShowPasswordPrompt(true);
-  }, [startGame, onPlayerNameChange]);
+  }, [startGame]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -320,18 +313,10 @@ const ForestGame = ({ onPlayerNameChange }) => {
 
         {!gameState.gameStarted && (
           <div className="start-screen">
-            <form onSubmit={handleNameSubmit}>
-              <label>Enter your name to play:
-                <input
-                  type="text"
-                  className="player-name-input"
-                  value={gameState.playerName}
-                  onChange={(e) => setGameState(prev => ({ ...prev, playerName: e.target.value }))}
-                  maxLength={10}
-                />
-              </label>
-              <button type="submit" className="submit-name-button">Start Game</button>
-            </form>
+            <p style={{ color:'#fbbf24', fontSize:'1.2rem', marginBottom:'12px' }}>
+              Ready, {propPlayerName}?
+            </p>
+            <button className="submit-name-button" onClick={startGame}>Start Game</button>
           </div>
         )}
 

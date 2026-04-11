@@ -1137,7 +1137,7 @@ function endGame(won) {
     <div style="display:flex;gap:10px;margin-top:6px">
       <button id="restart-btn">Play Again</button>
       <button id="lb-btn" style="background:#6366f1">🏆 Leaderboard</button>
-      <button id="chname-btn" style="background:#374151;color:#e5e7eb">Change Name</button>
+      <button id="back-btn" style="background:#374151;color:#e5e7eb">← Back to Arcade</button>
     </div>`;
   overlay.style.display='flex';
   document.getElementById('restart-btn').addEventListener('click',()=>{
@@ -1146,28 +1146,13 @@ function endGame(won) {
   document.getElementById('lb-btn').addEventListener('click',()=>{
     showLeaderboard();
   });
-  document.getElementById('chname-btn').addEventListener('click',()=>{
-    overlay.innerHTML=`
-      <h2>⚔ Tower Defense</h2>
-      <p>Enter a new name to continue playing.</p>
-      <div id="name-form">
-        <input id="name-input" type="text" placeholder="Your name" maxlength="10" autocomplete="off" value="${esc(playerName)}">
-        <button id="start-btn">Start Game</button>
-      </div>`;
-    const ni=document.getElementById('name-input'), sb=document.getElementById('start-btn');
-    const go=()=>{
-      const n=ni.value.trim();
-      if(!n||n.length>10){alert('Please enter a name (1–10 characters)');return;}
-      playerName=n; overlay.style.display='none'; initGame(); startMusic();
-    };
-    sb.addEventListener('click',go);
-    ni.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
-    ni.focus();
+  document.getElementById('back-btn').addEventListener('click',()=>{
+    window.location.href = '/';
   });
 }
 
 // ─── Online & Leaderboard System ──────────────────────────────────────────────
-let playerName = '';
+let playerName = localStorage.getItem('arcade_player_name') || '';
 const SESSION_ID = Math.random().toString(36).slice(2);
 let userLocation = 'Unknown';
 let presenceInterval = null, pollInterval = null;
@@ -1222,29 +1207,46 @@ document.getElementById('lb-close').addEventListener('click',()=>{
 initGame();
 loadAllAssets().then(()=>{
   const overlay=document.getElementById('overlay');
-  overlay.innerHTML=`
-    <h2>⚔ Tower Defense</h2>
-    <p>Place towers on grass tiles to stop enemies reaching your base.<br>
-    <b>6 tower types</b> with 2 upgrade levels. <b>Armored</b> enemies resist most damage — use Cannon or Mortar to pierce.</p>
-    <p class="hint">Left-click to place · Click tower to select/upgrade · Right-click to sell</p>
-    <div id="name-form">
-      <input id="name-input" type="text" placeholder="Your name" maxlength="10" autocomplete="off">
-      <button id="start-btn">Start Game</button>
-    </div>`;
-  const nameInput = document.getElementById('name-input');
-  const startBtn = document.getElementById('start-btn');
-  const doStart = ()=>{
-    const name = nameInput.value.trim();
-    if(!name||name.length<1||name.length>10){ alert('Please enter a name (1–10 characters)'); return; }
-    playerName = name;
+  const launchGame = () => {
     overlay.style.display='none';
     resumeAC(); startMusic(); running=true;
     startPresence();
     requestAnimationFrame(ts=>{ lastTs=ts; requestAnimationFrame(tick); });
   };
-  startBtn.addEventListener('click', doStart);
-  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doStart(); });
-  nameInput.focus();
+  if (playerName) {
+    // Name from localStorage (came from Game Arcade) — show ready screen
+    overlay.innerHTML=`
+      <h2>⚔ Tower Defense</h2>
+      <p>Place towers on grass tiles to stop enemies reaching your base.<br>
+      <b>6 tower types</b> with 2 upgrade levels. <b>Armored</b> enemies resist most damage — use Cannon or Mortar to pierce.</p>
+      <p class="hint">Left-click to place · Click tower to select/upgrade · Right-click to sell</p>
+      <p style="color:#fbbf24;font-size:1.1rem;margin-top:8px">Playing as <strong>${esc(playerName)}</strong></p>
+      <button id="start-btn">Start Game</button>`;
+    document.getElementById('start-btn').addEventListener('click', launchGame);
+  } else {
+    // No name — show name input (direct access)
+    overlay.innerHTML=`
+      <h2>⚔ Tower Defense</h2>
+      <p>Place towers on grass tiles to stop enemies reaching your base.<br>
+      <b>6 tower types</b> with 2 upgrade levels. <b>Armored</b> enemies resist most damage — use Cannon or Mortar to pierce.</p>
+      <p class="hint">Left-click to place · Click tower to select/upgrade · Right-click to sell</p>
+      <div id="name-form">
+        <input id="name-input" type="text" placeholder="Your name" maxlength="10" autocomplete="off">
+        <button id="start-btn">Start Game</button>
+      </div>`;
+    const nameInput = document.getElementById('name-input');
+    const startBtn = document.getElementById('start-btn');
+    const doStart = ()=>{
+      const name = nameInput.value.trim();
+      if(!name||name.length<1||name.length>10){ alert('Please enter a name (1–10 characters)'); return; }
+      playerName = name;
+      localStorage.setItem('arcade_player_name', name);
+      launchGame();
+    };
+    startBtn.addEventListener('click', doStart);
+    nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doStart(); });
+    nameInput.focus();
+  }
 });
 </script>
 </body>
