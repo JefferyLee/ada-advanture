@@ -14,9 +14,9 @@ function WelcomePage({ onEnter }) {
 
   useEffect(() => {
     const poll = () => {
-      fetch('/api/presence').then(r => r.json()).then(setPlayers).catch(() => {});
-      fetch('/api/scores?game=forest').then(r => r.json()).then(d => setScores(s => ({ ...s, forest: d }))).catch(() => {});
-      fetch('/api/scores?game=tower-defense').then(r => r.json()).then(d => setScores(s => ({ ...s, 'tower-defense': d }))).catch(() => {});
+      fetch('/api/presence').then(r => r.json()).then(d => { if (Array.isArray(d)) setPlayers(d); }).catch(() => {});
+      fetch('/api/scores?game=forest').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, forest: d })); }).catch(() => {});
+      fetch('/api/scores?game=tower-defense').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, 'tower-defense': d })); }).catch(() => {});
     };
     poll();
     const id = setInterval(poll, 5000);

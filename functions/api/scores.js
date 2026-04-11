@@ -27,7 +27,15 @@ export async function onRequestGet({ env, request }) {
     ).bind(gameType).all();
     return Response.json(results);
   } catch (err) {
-    return Response.json({ error: 'Failed to fetch scores' }, { status: 500 });
+    // Fallback: game_type column may not exist yet
+    try {
+      const { results } = await env.DB.prepare(
+        `SELECT name, score, location, played_at FROM leaderboard ORDER BY score DESC LIMIT 10`
+      ).all();
+      return Response.json(results);
+    } catch {
+      return Response.json([], { status: 200 });
+    }
   }
 }
 
@@ -62,6 +70,14 @@ export async function onRequestPost({ env, request }) {
     ).bind(name, score, wave, gameType, location).run();
     return Response.json({ ok: true }, { status: 201 });
   } catch (err) {
-    return Response.json({ error: 'Failed to save score' }, { status: 500 });
+    // Fallback: new columns may not exist yet
+    try {
+      await env.DB.prepare(
+        `INSERT INTO leaderboard (name, score, location) VALUES (?, ?, ?)`
+      ).bind(name, score, location).run();
+      return Response.json({ ok: true }, { status: 201 });
+    } catch {
+      return Response.json({ error: 'Failed to save score' }, { status: 500 });
+    }
   }
 }
