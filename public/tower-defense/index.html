@@ -103,6 +103,20 @@ canvas { display: block; border: 2px solid #374151; border-radius: 4px; cursor: 
 .online-name { color: #fbbf24; }
 .online-loc { color: #6b7280; font-size: 0.65rem; }
 
+/* Chat panel */
+#chat-panel { font-size: 0.72rem; }
+#chat-messages { max-height: 180px; overflow-y: auto; margin-bottom: 6px; }
+.chat-msg { margin-bottom: 3px; word-break: break-word; }
+.chat-msg .chat-name { color: #7eb8f7; font-weight: bold; }
+.chat-msg .chat-loc { color: #555; font-size: 0.6rem; }
+.chat-msg .chat-text { color: #ccc; }
+#chat-input-row { display: flex; gap: 4px; }
+#chat-input { flex: 1; padding: 4px 6px; background: #111827; border: 1px solid #374151;
+  border-radius: 4px; color: #e5e7eb; font-size: 0.7rem; outline: none; }
+#chat-input:focus { border-color: #fbbf24; }
+#chat-send { padding: 4px 8px; background: #14532d; border: 1px solid #16a34a;
+  border-radius: 4px; color: #86efac; font-size: 0.68rem; cursor: pointer; font-weight: bold; }
+
 /* Leaderboard overlay */
 #leaderboard-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.92);
   display: none; flex-direction: column; align-items: center; justify-content: center;
@@ -154,9 +168,19 @@ canvas { display: block; border: 2px solid #374151; border-radius: 4px; cursor: 
     </div>
     <div id="msg"></div>
   </div>
-  <div id="online-panel" class="panel">
-    <div class="online-title">🟢 Online <span class="online-count" id="online-count">0</span></div>
-    <div class="online-list" id="online-list"></div>
+  <div id="online-panel">
+    <div class="panel">
+      <div class="online-title">🟢 Online <span class="online-count" id="online-count">0</span></div>
+      <div class="online-list" id="online-list"></div>
+    </div>
+    <div class="panel" id="chat-panel">
+      <div class="online-title">💬 Chat</div>
+      <div id="chat-messages"></div>
+      <div id="chat-input-row">
+        <input id="chat-input" type="text" placeholder="Say something..." maxlength="200">
+        <button id="chat-send">Send</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="leaderboard-overlay">
@@ -1168,8 +1192,9 @@ function startPresence() {
   };
   heartbeat();
   presenceInterval = setInterval(heartbeat, 15000);
-  pollInterval = setInterval(pollOnline, 5000);
+  pollInterval = setInterval(()=>{ pollOnline(); pollChat(); }, 5000);
   pollOnline();
+  pollChat();
 }
 
 function pollOnline() {
@@ -1181,6 +1206,26 @@ function pollOnline() {
 }
 
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// Chat
+function pollChat() {
+  fetch('/api/chat').then(r=>r.json()).then(msgs=>{
+    if(!Array.isArray(msgs)) return;
+    const el = document.getElementById('chat-messages');
+    el.innerHTML = msgs.map(m=>`<div class="chat-msg"><span class="chat-name">${esc(m.name)}</span> <span class="chat-loc">[${esc(m.location)}]</span> <span class="chat-text">${esc(m.message)}</span></div>`).join('');
+    el.scrollTop = el.scrollHeight;
+  }).catch(()=>{});
+}
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if(!text||!playerName) return;
+  fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:playerName,location:userLocation,message:text})})
+    .then(r=>r.json()).then(d=>{ if(d.ok){ input.value=''; pollChat(); } }).catch(()=>{});
+}
+document.getElementById('chat-send').addEventListener('click', sendChat);
+document.getElementById('chat-input').addEventListener('keydown', e=>{ if(e.key==='Enter') sendChat(); });
 
 function submitScore() {
   if(!playerName) return;

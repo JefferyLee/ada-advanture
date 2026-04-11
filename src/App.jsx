@@ -116,7 +116,7 @@ function ScoreTable({ title, scores, showWave }) {
 function GameHub({ playerName, onSelectGame }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-      minHeight:'50vh', gap:'28px', padding:'40px 20px' }}>
+      minHeight:'50vh', gap:'28px', padding:'40px 20px', paddingBottom:'240px' }}>
       <h1 style={{ fontSize:'2rem', color:'#fbbf24', letterSpacing:'3px', textTransform:'uppercase', textShadow:'0 0 30px #fbbf2466' }}>
         🎮 Game Arcade
       </h1>
@@ -175,17 +175,22 @@ function App() {
     setSelectedGame(game);
   };
 
-  // Not logged in — show welcome page
+  // Not logged in — show welcome page (no chat yet)
   if (!playerName) {
     return <WelcomePage onEnter={handleEnter} />;
   }
 
-  // Logged in but no game selected — show game hub
+  // Logged in but no game selected — show game hub + chat
   if (!selectedGame) {
-    return <GameHub playerName={playerName} onSelectGame={handleSelectGame} />;
+    return (
+      <>
+        <GameHub playerName={playerName} onSelectGame={handleSelectGame} />
+        <OnlineChat playerName={playerName} />
+      </>
+    );
   }
 
-  // Playing Forest game
+  // Playing Forest game — game + chat
   return (
     <div>
       <div style={{ textAlign:'left', padding:'8px 20px' }}>
