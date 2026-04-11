@@ -90,7 +90,7 @@ const ForestGame = ({ onPlayerNameChange }) => {
       fetch('/api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: playerNameRef.current, score: go.score }),
+        body: JSON.stringify({ name: playerNameRef.current, score: go.score, game: 'forest' }),
       }).catch(() => {});
     };
     endGameRef.current = endGame;

@@ -7,7 +7,7 @@ function HighScores({ onClose }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetch('/api/scores')
+    fetch('/api/scores?game=forest')
       .then(res => {
         if (!res.ok) throw new Error('Failed to load scores');
         return res.json();

@@ -14,14 +14,17 @@ export async function onRequestDelete({ env, request }) {
   }
 }
 
-export async function onRequestGet({ env }) {
+export async function onRequestGet({ env, request }) {
+  const url = new URL(request.url);
+  const gameType = url.searchParams.get('game') || 'forest';
   try {
     const { results } = await env.DB.prepare(
-      `SELECT name, score, location, played_at
+      `SELECT name, score, wave, location, played_at
          FROM leaderboard
+        WHERE game_type = ?
         ORDER BY score DESC
         LIMIT 10`
-    ).all();
+    ).bind(gameType).all();
     return Response.json(results);
   } catch (err) {
     return Response.json({ error: 'Failed to fetch scores' }, { status: 500 });
@@ -36,8 +39,10 @@ export async function onRequestPost({ env, request }) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const name  = (body.name  ?? '').toString().trim().slice(0, 10);
-  const score = parseInt(body.score, 10);
+  const name     = (body.name ?? '').toString().trim().slice(0, 10);
+  const score    = parseInt(body.score, 10);
+  const wave     = body.wave != null ? parseInt(body.wave, 10) : null;
+  const gameType = (body.game || 'forest').toString().slice(0, 30);
 
   if (!name) {
     return Response.json({ error: 'name is required' }, { status: 400 });
@@ -53,8 +58,8 @@ export async function onRequestPost({ env, request }) {
 
   try {
     await env.DB.prepare(
-      `INSERT INTO leaderboard (name, score, location) VALUES (?, ?, ?)`
-    ).bind(name, score, location).run();
+      `INSERT INTO leaderboard (name, score, wave, game_type, location) VALUES (?, ?, ?, ?, ?)`
+    ).bind(name, score, wave, gameType, location).run();
     return Response.json({ ok: true }, { status: 201 });
   } catch (err) {
     return Response.json({ error: 'Failed to save score' }, { status: 500 });
