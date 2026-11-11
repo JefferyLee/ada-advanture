@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { imageUrl } from './store.js';
 
-function useStoredImage(id) {
+export function useStoredImage(id) {
   const [url, setUrl] = useState(null);
   useEffect(() => {
     let alive = true;

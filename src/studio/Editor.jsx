@@ -5,12 +5,13 @@ import ComicPage from './ComicPage.jsx';
 import HelperBar from './HelperBar.jsx';
 import Icon from './Icon.jsx';
 import PhotoImport from './PhotoImport.jsx';
+import PhotoPicker from './PhotoPicker.jsx';
 import {
   BOX_STYLES, COLORS, FONTS, INNER_H, INNER_W, LAYOUTS, PAGE_H, PAGE_W, PAINT_COLORS, PEN_SIZES, SIZES,
   applyActions, describePage, getPart, newCardPage, newComicPage, newId, newItem, pageLabel, panelRects,
   roleOf, setLayout,
 } from './model.js';
-import { putImage } from './store.js';
+import { imageBlob, putImage } from './store.js';
 
 // Undo/redo over whole-book snapshots. A change made with the same `key` as
 // the one before it (typing in one box) replaces it instead of adding a step.
@@ -274,7 +275,7 @@ function ComicSide({ page, selected, tool, pen, onTool, onPen, onAddItem, onStyl
 const holderOf = (page, target) =>
   (target === 'card' ? page : page.panels.find((p) => `panel:${p.id}` === target));
 
-export default function Editor({ book: initialBook, saveState, onChange, onExit }) {
+export default function Editor({ book: initialBook, photos, saveLabel, saveOk, onChange, onPhotoUsed, onExit }) {
   const { book, current, commit, update, undo, redo, canUndo, canRedo } = useHistory(initialBook, onChange);
   const [pageId, setPageId] = useState(initialBook.pages[0].id);
   const [selected, setSelected] = useState(null);
@@ -282,7 +283,9 @@ export default function Editor({ book: initialBook, saveState, onChange, onExit 
   const [pen, setPen] = useState({ size: PEN_SIZES[1], color: PAINT_COLORS[0].hex });
   const [focusItem, setFocusItem] = useState(null);
   const [photoFor, setPhotoFor] = useState(null); // which drawing the picked photo is for
+  const [picking, setPicking] = useState(false); // choosing among the New Photos
   const [importFile, setImportFile] = useState(null);
+  const [importPhoto, setImportPhoto] = useState(null); // the New Photo being imported, if it is one
   const [coloring, setColoring] = useState(null); // which drawing is open in Color It
   const [helperChange, setHelperChange] = useState(null); // the book as the helper left it
   const stageRef = useRef(null);
@@ -325,13 +328,32 @@ export default function Editor({ book: initialBook, saveState, onChange, onExit 
     update((b) => { onPage(b).boxes.find((x) => x.id === boxId).boxStyle = boxStyle; });
 
   // Drawings: photo in, color, take off.
-  const pickPhoto = (target) => { setPhotoFor(target); fileRef.current?.click(); };
+  // Photos waiting in the New Photos tray are offered first; without any, go
+  // straight to this device's camera or files.
+  const pickPhoto = (target) => {
+    setPhotoFor(target);
+    if (photos.length) setPicking(true);
+    else fileRef.current?.click();
+  };
+
+  const useTrayPhoto = async (photo) => {
+    const blob = await imageBlob(photo.imageId);
+    setPicking(false);
+    if (!blob) { window.alert("I can't get that photo right now. Try again when you are online."); return; }
+    setImportPhoto(photo.id);
+    setImportFile(blob);
+  };
+
+  const closeImport = () => { setImportFile(null); setImportPhoto(null); };
 
   const photoDone = async ({ blob, origBlob, w, h }) => {
     const image = { id: newId(), origId: newId(), w, h };
     await Promise.all([putImage(image.id, blob), putImage(image.origId, origBlob)]);
     update((b) => { holderOf(onPage(b), photoFor).image = image; });
-    setImportFile(null);
+    // A tray photo has done its job once it is on a page. The photo itself
+    // stays stored with the drawing.
+    if (importPhoto) onPhotoUsed(importPhoto);
+    closeImport();
   };
 
   const colorDone = async ({ colorBlob, fills, gap }) => {
@@ -402,9 +424,7 @@ export default function Editor({ book: initialBook, saveState, onChange, onExit 
             onChange={(e) => update((b) => { b.title = e.target.value; }, 'book-title')} />
         </span>
         <span className="gn-saved" role="status">
-          {saveState === 'saved' && <><Icon name="check" size={20} stroke={2.8} /> Saved</>}
-          {saveState === 'saving' && 'Saving...'}
-          {saveState === 'error' && 'Not saved! Tell a grown-up.'}
+          {saveOk && <Icon name="check" size={20} stroke={2.8} />} {saveLabel}
         </span>
         <button className="gn-bar-btn" onClick={undo} disabled={!canUndo}><Icon name="undo" /> Undo</button>
         <button className="gn-bar-btn" onClick={redo} disabled={!canRedo}><Icon name="redo" /> Redo</button>
@@ -471,8 +491,12 @@ export default function Editor({ book: initialBook, saveState, onChange, onExit 
       />
 
       <input ref={fileRef} type="file" accept="image/*" hidden
-        onChange={(e) => { setImportFile(e.target.files[0] || null); e.target.value = ''; }} />
-      {importFile && <PhotoImport file={importFile} onCancel={() => setImportFile(null)} onDone={photoDone} />}
+        onChange={(e) => { setImportPhoto(null); setImportFile(e.target.files[0] || null); e.target.value = ''; }} />
+      {picking && (
+        <PhotoPicker photos={photos} onPick={useTrayPhoto} onCancel={() => setPicking(false)}
+          onDevice={() => { setPicking(false); fileRef.current?.click(); }} />
+      )}
+      {importFile && <PhotoImport file={importFile} onCancel={closeImport} onDone={photoDone} />}
       {coloringImage && <ColorStudio image={coloringImage} onCancel={() => setColoring(null)} onDone={colorDone} />}
 
       {/* What the printer gets: just the page, filling an A4 sheet. */}

@@ -1,17 +1,29 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useStoredImage } from './Drawing.jsx';
 import Icon from './Icon.jsx';
 import { LOOKS, getLook, setLook } from './look.js';
 
 const COVER_COLORS = ['purple', 'orange', 'yellow'];
 
-export default function Bookshelf({ books, onOpen, onCreate, onDelete }) {
+export function PhotoThumb({ imageId }) {
+  const url = useStoredImage(imageId);
+  return url ? <img src={url} alt="A photo of a drawing" /> : <span className="gn-thumb-wait">...</span>;
+}
+
+export default function Bookshelf({
+  books, photos, saveLabel, saveOk, onOpen, onCreate, onDelete, onAddPhotos, onDeletePhoto,
+}) {
   const [look, setLookState] = useState(getLook);
   const pickLook = (id) => { setLook(id); setLookState(id); };
+  const fileRef = useRef(null);
 
   return (
     <div className="gn-app">
       <header className="gn-topbar">
         <span className="gn-wordmark gn-grow">Ada's Graphic Novel Creator</span>
+        <span className="gn-saved" role="status">
+          {saveOk && <Icon name="check" size={20} stroke={2.8} />} {saveLabel}
+        </span>
         <span className="gn-look" role="group" aria-label="Look">
           Look:
           {LOOKS.map((l) => (
@@ -51,6 +63,33 @@ export default function Bookshelf({ books, onOpen, onCreate, onDelete }) {
         {books.length === 0 && (
           <p className="gn-hint-big">Tap New Episode to start your first book.</p>
         )}
+
+        <section className="gn-tray" aria-label="New photos">
+          <div className="gn-tray-head">
+            <h2 className="gn-h2">New Photos</h2>
+            <button className="gn-btn gn-btn-yellow" onClick={() => fileRef.current?.click()}>
+              <Icon name="camera" /> Add Photos
+            </button>
+          </div>
+          {photos.length === 0 ? (
+            <p className="gn-hint-big">
+              Take photos of your drawings here. They wait in this tray, on all your devices, until you put them on a page.
+            </p>
+          ) : (
+            <div className="gn-tray-grid">
+              {photos.map((photo) => (
+                <div key={photo.id} className="gn-tray-item">
+                  <PhotoThumb imageId={photo.imageId} />
+                  <button className="gn-handle gn-tray-delete" aria-label="Delete photo" onClick={() => onDeletePhoto(photo)}>
+                    <Icon name="close" size={18} stroke={3} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" multiple hidden
+            onChange={(e) => { const files = [...e.target.files]; e.target.value = ''; if (files.length) onAddPhotos(files); }} />
+        </section>
       </main>
     </div>
   );

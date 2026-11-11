@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import { cleanLineArt } from './cleanup.js';
 import { FULL_FRAME, detectPage, straightSize, straighten, toSmallGray } from './perspective.js';
+import { loadBitmap } from './photo.js';
 
 const SOURCE_SIDE = 2200; // the photo is shrunk to this before anything else
 const OUT_SIDE = 1500; // longest side of the straightened, cleaned drawing
@@ -10,22 +11,6 @@ const MARGIN = 12; // blank space kept around the trimmed drawing
 
 const CORNER_NAMES = ['Top left corner', 'Top right corner', 'Bottom right corner', 'Bottom left corner'];
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
-
-async function loadBitmap(file) {
-  try {
-    return await createImageBitmap(file, { imageOrientation: 'from-image' });
-  } catch {
-    const url = URL.createObjectURL(file);
-    try {
-      const img = new Image();
-      img.src = url;
-      await img.decode();
-      return img;
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-}
 
 // The photo, shrunk and turned, with its pixels ready to read.
 function makeSource(bitmap, quarterTurns) {

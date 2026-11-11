@@ -1,6 +1,6 @@
 # Settings for running the studio's server functions on your own computer:
 #   cp .dev.vars.example .dev.vars
-#   npm run build && npx wrangler pages dev dist
+#   npm run studio:local      (builds, then serves with a local database and bucket for sync)
 # .dev.vars is ignored by git. Never commit a real key.
 
 # Your Anthropic API key (from the Anthropic Console).

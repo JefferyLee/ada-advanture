@@ -6,3 +6,27 @@ compatibility_date = "2024-09-23"
 binding = "DB"
 database_name = "ada-leaderboard"
 database_id = "c01e14af-e831-41b0-9ac7-745e66a8cfb6"
+
+# ---- Graphic Novel Creator: sync between devices ------------------------
+# The studio keeps books and pictures on this device and, when the two
+# bindings below exist, also copies them to the server so the iPad and the
+# iMac share them. Without them the studio still works, on one device only.
+#
+# To switch sync on:
+#   npx wrangler d1 create ada-studio          (prints the database_id to paste below)
+#   npx wrangler r2 bucket create ada-studio
+# then uncomment this block and deploy. The tables create themselves.
+#
+# [[d1_databases]]
+# binding = "STUDIO_DB"
+# database_name = "ada-studio"
+# database_id = "PASTE-THE-ID-HERE"
+#
+# [[r2_buckets]]
+# binding = "STUDIO_BUCKET"
+# bucket_name = "ada-studio"
+#
+# Preview deployments use the same storage as production unless given their
+# own. To keep test work away from the real books, create a second pair
+# (ada-studio-preview) and list every binding again under [env.preview],
+# including the game's DB: bindings are not inherited by an environment.

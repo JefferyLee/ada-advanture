@@ -13,6 +13,7 @@ npm run preview  # Preview production build
 For Cloudflare Pages Functions, use the Wrangler CLI to test locally:
 ```bash
 npx wrangler pages dev dist
+npm run studio:local     # the studio with a local database and bucket, so sync works
 ```
 
 Deploys are run by hand with Wrangler (there is no Git-connected build):
@@ -46,7 +47,8 @@ This is a React + Vite web game deployed on Cloudflare Pages.
 A second app in the same Pages project, for Ada (8) to make her graphic novels. It is a separate Vite entry (`studio/index.html` -> `src/studio/`), so it shares nothing with the game bundle. **All UI text is English and written for an 8-year-old.**
 
 - **Model** (`src/studio/model.js`): a book (episode) has pages of two types. A `card` page has a name, four boxes (title + body) and an optional drawing. A `comic` page has a panel layout, panels that can each hold a drawing, pen strokes drawn over the page, and items (speech/thought bubbles, captions, sound words). Every piece of text is a "part" addressed by a target string: `name`, `<boxId>.title`, `<boxId>.body`, `item:<id>`. Pages are plain JSON.
-- **Storage** (`store.js`): browser IndexedDB only for now (books as JSON, images as Blobs). Server sync (D1 + R2) is not built yet.
+- **Storage and sync** (`store.js`, `sync.js`, `functions/api/studio/{sync,docs/[id],images/[id]}.js`, `server/studio/storage.js`): local-first. Everything is saved to IndexedDB (books and tray photos as JSON documents, pictures as Blobs) and copied to the server in the background. The server keeps a list of documents with a global revision counter in D1 (`STUDIO_DB`) and the bodies and pictures in R2 (`STUDIO_BUCKET`); a client pulls "everything since revision N" and pushes with the revision it last saw. A push against a stale revision gets 409 and nothing is overwritten: the device takes the server's book and keeps its own version as a new book titled "(copy)". Pictures are immutable (new id per version) and fetched on demand. Every save writes a new body object, so R2 holds the full history. With no bindings (or under plain `vite`), sync turns itself off and the app is single-device. There is one shared library for everyone Access lets in; tables are created on first use. `Studio.jsx` owns the engine and remounts the editor when another device's version of the open book arrives.
+- **New Photos tray** (`Bookshelf.jsx`, `PhotoPicker.jsx`): photos added on the bookshelf are synced as `photo` documents, so they can be taken on the iPad and placed from the iMac. Adding a drawing offers the tray first; a tray photo is removed once it is on a page (the photo itself stays stored as the drawing's original).
 - **Editor** (`Editor.jsx`): one editor for both page types, with whole-book undo/redo snapshots; edits made with the same key (typing in one box, one eraser rub) collapse into one step. Pages are drawn at a fixed 900x636 (`CardPage.jsx`, `ComicPage.jsx`) and scaled to fit; printing uses a read-only copy scaled to A4 landscape.
 - **Comic page** (`ComicPage.jsx`): everything is positioned in page pixels. Pen strokes are SVG paths on a page-wide layer (not per panel); the eraser removes whole strokes. Once an Apple Pencil has been seen, finger touches don't draw.
 - **Coloring** (`ColorStudio.jsx`, `regions.js`): tap-to-fill. `regions.js` splits the line art into enclosed areas, thickening lines first so small gaps don't leak (DOM-free, testable in Node). Fills are stored as seed points on the image (`fills`, `gap`) plus a rendered color layer (`colorId`) that `Drawing.jsx` shows under the line art. The line art itself is never modified.
@@ -56,4 +58,4 @@ A second app in the same Pages project, for Ada (8) to make her graphic novels. 
 
 - **Looks and colors** (`studio.css`, `look.js`): two looks, `simple` (comic outlines) and `crafty` (wood, paper, raised buttons), chosen on the bookshelf and stored in `localStorage`; each has light and dark values that follow `prefers-color-scheme`. Everything is driven by CSS variables set on `html[data-theme]`. Purple is the accent (the family iMac is purple). **The page itself never changes with the look or with dark mode**: it is always white paper with fixed ink colors, so on-screen matches print. When adding UI, use the look variables (`--surface`, `--ctl`, `--fg`, ...) for app chrome and the constants (`--ink`, `--paper`, `--select`) for anything drawn on the page.
 
-Not built yet: helper-driven coloring and part resizing (needs the helper to see the drawing), and server sync between the iPad and the iMac.
+Not built yet: helper-driven coloring and part resizing (needs the helper to see the drawing). Sync is written and tested against local storage but has not run against real Cloudflare resources.

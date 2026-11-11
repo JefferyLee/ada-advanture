@@ -329,9 +329,9 @@ html[data-theme='crafty'] .gn-wordmark { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6)
   display: flex; flex-direction: column; gap: 20px;
 }
 /* Headings on the bare desk need to read against wood as well as lavender. */
-html[data-theme='crafty'] .gn-shelf .gn-h1, html[data-theme='crafty'] .gn-shelf .gn-hint-big { color: #2e2417; }
+html[data-theme='crafty'] .gn-shelf :is(.gn-h1, .gn-h2, .gn-hint-big) { color: #2e2417; }
 @media (prefers-color-scheme: dark) {
-  html[data-theme='crafty'] .gn-shelf .gn-h1, html[data-theme='crafty'] .gn-shelf .gn-hint-big { color: #f1ecfb; }
+  html[data-theme='crafty'] .gn-shelf :is(.gn-h1, .gn-h2, .gn-hint-big) { color: #f1ecfb; }
 }
 .gn-covers { display: flex; flex-wrap: wrap; gap: 28px; }
 .gn-cover-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
@@ -362,6 +362,30 @@ html[data-theme='crafty'] .gn-cover { border-radius: 4px 12px 12px 4px; }
   display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border: var(--ctl-border);
   border-radius: 22px; background: var(--chip); font-size: 15px; font-weight: 700; color: var(--ctl-fg) !important;
 }
+
+/* New Photos: photos waiting to be put on a page */
+.gn-tray { margin-top: 12px; display: flex; flex-direction: column; gap: 14px; }
+.gn-tray-head { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.gn-tray-grid { display: flex; flex-wrap: wrap; gap: 18px; }
+.gn-tray-item {
+  position: relative; width: 200px; height: 150px; padding: 0; border: var(--btn-border); border-radius: 10px;
+  background: #6b6257; box-shadow: var(--ctl-shadow); display: grid; place-items: center;
+}
+.gn-tray-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 7px; display: block; }
+.gn-tray-pick:hover, .gn-tray-pick:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
+.gn-tray-delete { right: -14px; top: -14px; background: #fff; }
+.gn-thumb-wait { color: #fff; font-weight: 700; }
+.gn-picker { width: min(900px, 100%); }
+.gn-picker > .gn-btn { align-self: flex-start; }
+
+/* A message that needs to be seen once, such as "I kept both copies" */
+.gn-toast {
+  position: fixed; left: 50%; top: 76px; transform: translateX(-50%); z-index: 20;
+  max-width: min(760px, calc(100% - 32px)); padding: 12px 14px 12px 20px; border: var(--btn-border); border-radius: 16px;
+  background: var(--pop); color: var(--pop-fg); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  display: flex; align-items: center; gap: 16px; font-family: var(--font-ui); font-size: 18px; font-weight: 700; line-height: 1.3;
+}
+.gn-toast .gn-btn { flex-shrink: 0; min-height: 44px; font: inherit; cursor: pointer; }
 
 /* ---- Editor layout ---- */
 .gn-work { flex: 1; min-height: 0; display: flex; }

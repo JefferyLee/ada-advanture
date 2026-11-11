@@ -1,18 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Bookshelf from './Bookshelf.jsx';
 import Editor from './Editor.jsx';
-import { newBook } from './model.js';
-import { deleteBook, listBooks, putBook } from './store.js';
+import { newBook, newId } from './model.js';
+import { shrinkPhoto } from './photo.js';
+import { listBooks, listPhotos, putImage, removeBook, removePhoto, saveBook, savePhoto } from './store.js';
+import { createSync } from './sync.js';
 
-// Top of the app: loads the books, shows the shelf or the editor, and saves.
+const SAVE_LABELS = {
+  off: 'Saved', // no server: this device only, nothing more to say
+  synced: 'Saved on all devices',
+  syncing: 'Sending...',
+  waiting: 'Saved on this device',
+};
+
+// Top of the app: loads the books and photos, shows the shelf or the editor,
+// saves, and keeps this device in step with the others.
 export default function Studio() {
   const [books, setBooks] = useState(null); // null while loading
+  const [photos, setPhotos] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [saveState, setSaveState] = useState('saved'); // saved | saving | error
+  const [syncState, setSyncState] = useState('off');
+  const [arrivals, setArrivals] = useState({}); // book id -> how many times another device's version replaced it
+  const [notice, setNotice] = useState(null);
   const pending = useRef(null); // { book, timer } waiting to be written
+  const sync = useRef(null);
+  const openNow = useRef(null);
+  openNow.current = openId;
 
-  useEffect(() => {
-    listBooks().then(setBooks, () => setBooks([]));
+  const load = () => Promise.all([listBooks(), listPhotos()]);
+
+  // Something was just saved on this device and still has to go to the
+  // server. Say so straight away, rather than claiming it is everywhere
+  // until the upload has actually finished.
+  const send = useCallback(() => {
+    setSyncState((s) => (s === 'off' ? s : 'syncing'));
+    sync.current?.soon();
   }, []);
 
   const flush = useCallback(() => {
@@ -20,11 +43,61 @@ export default function Studio() {
     if (!p) return;
     clearTimeout(p.timer);
     pending.current = null;
-    putBook(p.book).then(() => setSaveState('saved'), () => setSaveState('error'));
+    saveBook(p.book).then(
+      () => { setSaveState('saved'); send(); },
+      () => setSaveState('error'),
+    );
+  }, [send]);
+
+  useEffect(() => {
+    load().then(([b, p]) => { setBooks(b); setPhotos(p); }, () => setBooks([]));
+
+    const engine = createSync(async (event) => {
+      if (event.type === 'status') { setSyncState(event.status); return; }
+      // Another device's changes arrived. Read them first, then update
+      // everything in one go: the lists, which book is open, and the signal
+      // that reopens the editor on a book that was replaced. Doing it in one
+      // step means the editor is never rebuilt a moment after it was opened.
+      const [b, p] = await load();
+      setBooks(b);
+      setPhotos(p);
+      const mine = event.copies.find((c) => c.from === openNow.current);
+      if (mine) {
+        // The open book was changed elsewhere too. Carry on in the copy that holds this device's work.
+        setOpenId(mine.to);
+        setNotice('This book was changed on another device too, so I kept both. You are working on the copy.');
+      } else if (event.copies.length) {
+        setNotice('A book was changed on two devices, so I kept both. Look for the one marked (copy).');
+      }
+      setArrivals((prev) => {
+        const next = { ...prev };
+        for (const key of event.changed) {
+          if (key.startsWith('book:')) next[key.slice(5)] = (next[key.slice(5)] || 0) + 1;
+        }
+        return next;
+      });
+    });
+    sync.current = engine;
+    engine.now();
+
+    // Check in whenever the app comes back into view, the network returns,
+    // and every half minute while it is on screen.
+    const wake = () => { if (document.visibilityState === 'visible') engine.now(); };
+    const timer = setInterval(wake, 30000);
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake);
+    window.addEventListener('online', wake);
+    return () => {
+      engine.stop();
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake);
+      window.removeEventListener('online', wake);
+    };
   }, []);
 
   // Writes are held back briefly so typing doesn't hit the disk on every key.
-  const saveBook = useCallback((book) => {
+  const changeBook = useCallback((book) => {
     setBooks((bs) => bs.map((b) => (b.id === book.id ? book : b)));
     setSaveState('saving');
     if (pending.current) clearTimeout(pending.current.timer);
@@ -45,31 +118,81 @@ export default function Studio() {
   const createBook = async () => {
     const number = books.reduce((m, b) => Math.max(m, b.number), 0) + 1;
     const book = newBook(number);
-    await putBook(book);
+    await saveBook(book);
     setBooks((bs) => [book, ...bs]);
     setOpenId(book.id);
+    send();
   };
 
-  const removeBook = async (book) => {
+  const deleteBook = async (book) => {
     const name = book.title.trim() || `Episode ${book.number}`;
     if (!window.confirm(`Delete "${name}" forever? You can't get it back.`)) return;
-    await deleteBook(book.id);
+    await removeBook(book.id);
     setBooks((bs) => bs.filter((b) => b.id !== book.id));
+    send();
   };
+
+  // Photos for the New Photos tray: kept here and sent to the other devices.
+  const addPhotos = async (files) => {
+    let failed = 0;
+    for (const file of files) {
+      try {
+        const blob = await shrinkPhoto(file);
+        const photo = { id: newId(), imageId: newId(), createdAt: Date.now() };
+        await putImage(photo.imageId, blob);
+        await savePhoto(photo);
+      } catch {
+        failed++;
+      }
+    }
+    if (failed) setNotice(failed === 1 ? "I couldn't open one of those pictures." : `I couldn't open ${failed} of those pictures.`);
+    setPhotos(await listPhotos());
+    send();
+  };
+
+  const dropPhoto = async (id) => {
+    await removePhoto(id);
+    setPhotos((ps) => ps.filter((p) => p.id !== id));
+    send();
+  };
+
+  const deletePhoto = (photo) => {
+    if (window.confirm('Delete this photo?')) dropPhoto(photo.id);
+  };
+
+  const saveLabel = saveState === 'saving' ? 'Saving...'
+    : saveState === 'error' ? 'Not saved! Tell a grown-up.'
+      : SAVE_LABELS[syncState];
+  const saveOk = saveState === 'saved' && syncState !== 'syncing';
 
   if (books === null) return <div className="gn-app gn-loading">Opening your books...</div>;
 
   const open = books.find((b) => b.id === openId);
-  if (open) {
-    return (
-      <Editor
-        key={open.id}
-        book={open}
-        saveState={saveState}
-        onChange={saveBook}
-        onExit={() => { flush(); setOpenId(null); }}
-      />
-    );
-  }
-  return <Bookshelf books={books} onOpen={setOpenId} onCreate={createBook} onDelete={removeBook} />;
+  return (
+    <>
+      {open ? (
+        <Editor
+          // A fresh editor when the book is swapped for another device's version.
+          key={`${open.id}:${arrivals[open.id] || 0}`}
+          book={open}
+          photos={photos}
+          saveLabel={saveLabel}
+          saveOk={saveOk}
+          onChange={changeBook}
+          onPhotoUsed={dropPhoto}
+          onExit={() => { flush(); setOpenId(null); }}
+        />
+      ) : (
+        <Bookshelf books={books} photos={photos} saveLabel={saveLabel} saveOk={saveOk}
+          onOpen={setOpenId} onCreate={createBook} onDelete={deleteBook}
+          onAddPhotos={addPhotos} onDeletePhoto={deletePhoto} />
+      )}
+      {notice && (
+        <div className="gn-toast" role="status">
+          <span>{notice}</span>
+          <button className="gn-btn" onClick={() => setNotice(null)}>OK</button>
+        </div>
+      )}
+    </>
+  );
 }
