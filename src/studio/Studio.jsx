@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Bookshelf from './Bookshelf.jsx';
-import CardEditor from './CardEditor.jsx';
+import Editor from './Editor.jsx';
 import { newBook } from './model.js';
 import { deleteBook, listBooks, putBook } from './store.js';
 
@@ -62,7 +62,7 @@ export default function Studio() {
   const open = books.find((b) => b.id === openId);
   if (open) {
     return (
-      <CardEditor
+      <Editor
         key={open.id}
         book={open}
         saveState={saveState}

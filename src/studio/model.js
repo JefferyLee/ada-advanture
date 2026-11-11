@@ -3,12 +3,17 @@
 // Everything here is plain JSON so a page can be saved, undone, and described
 // to the helper without conversion. Every piece of text on a page is a "part"
 // with its own font, size and color, addressed by a target string:
-//   "name"            the character's name
-//   "<boxId>.title"   a box heading
-//   "<boxId>.body"    a box's text
+//   "name"            a character card's name
+//   "<boxId>.title"   a card box heading
+//   "<boxId>.body"    a card box's text
+//   "item:<id>"       a bubble, caption or sound word on a comic page
 
 export const PAGE_W = 900;
 export const PAGE_H = 636; // A4 landscape at the same ratio
+
+// A comic page positions things inside its 3px border.
+export const INNER_W = PAGE_W - 6;
+export const INNER_H = PAGE_H - 6;
 
 export const FONTS = [
   { id: 'hand', css: "'Patrick Hand', cursive" },
@@ -24,6 +29,8 @@ const SIZE_PX = {
   name: { s: 40, m: 50, l: 60, xl: 72 },
   title: { s: 20, m: 24, l: 28, xl: 34 },
   body: { s: 17, m: 21, l: 26, xl: 32 },
+  bubble: { s: 14, m: 17, l: 21, xl: 26 },
+  sound: { s: 40, m: 60, l: 84, xl: 110 },
 };
 
 export const COLORS = [
@@ -37,6 +44,34 @@ export const COLORS = [
 
 export const BOX_STYLES = ['none', 'box', 'banner'];
 
+export const BUBBLE_KINDS = ['speech', 'thought', 'caption', 'sound'];
+
+export const PEN_SIZES = [3, 6, 12];
+
+// Panel layouts, as cells on a small grid: [column, row, columns wide, rows tall].
+export const LAYOUTS = {
+  wide: { label: 'Three small panels, one wide, one small', cols: 6, rows: 2, cells: [[0, 0, 2, 1], [2, 0, 2, 1], [4, 0, 2, 1], [0, 1, 4, 1], [4, 1, 2, 1]] },
+  four: { label: 'Four equal panels', cols: 2, rows: 2, cells: [[0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]] },
+  topbig: { label: 'One big panel on top, two below', cols: 2, rows: 2, cells: [[0, 0, 2, 1], [0, 1, 1, 1], [1, 1, 1, 1]] },
+  strips: { label: 'Three tall panels', cols: 3, rows: 1, cells: [[0, 0, 1, 1], [1, 0, 1, 1], [2, 0, 1, 1]] },
+};
+
+const PANEL_MARGIN = 16;
+const PANEL_GAP = 12;
+
+// Where each panel of a layout sits on the page, in page pixels.
+export function panelRects(layoutId) {
+  const { cols, rows, cells } = LAYOUTS[layoutId] || LAYOUTS.wide;
+  const cw = (INNER_W - 2 * PANEL_MARGIN - (cols - 1) * PANEL_GAP) / cols;
+  const ch = (INNER_H - 2 * PANEL_MARGIN - (rows - 1) * PANEL_GAP) / rows;
+  return cells.map(([c, r, w, h]) => ({
+    x: PANEL_MARGIN + c * (cw + PANEL_GAP),
+    y: PANEL_MARGIN + r * (ch + PANEL_GAP),
+    w: w * cw + (w - 1) * PANEL_GAP,
+    h: h * ch + (h - 1) * PANEL_GAP,
+  }));
+}
+
 export const newId = () =>
   (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
 
@@ -48,6 +83,8 @@ const box = (id, title, color) => ({
   title: part(title, 'bangers', 'l', color),
   body: part('', 'hand', 'm', 'black'),
 });
+
+// A drawing is { id, origId, w, h } plus, once colored, { colorId, fills, gap }.
 
 export function newCardPage() {
   return {
@@ -61,7 +98,49 @@ export function newCardPage() {
       box('box3', 'WEAKNESS', 'orange'),
       box('box4', 'ABOUT', 'orange'),
     ],
-    image: null, // { id, origId, w, h } once a drawing is added
+    image: null,
+  };
+}
+
+const newPanel = () => ({ id: newId(), image: null });
+
+export function newComicPage() {
+  return {
+    id: newId(),
+    type: 'comic',
+    layout: 'wide',
+    panels: LAYOUTS.wide.cells.map(newPanel),
+    strokes: [], // pen lines drawn on the page: { id, color, size, points: [x, y, x, y, ...] }
+    items: [], // bubbles, captions and sound words
+  };
+}
+
+// Switching layout keeps every panel's contents; panels a layout has no room
+// for are only hidden, so switching back brings them back.
+export function setLayout(page, layoutId) {
+  page.layout = layoutId;
+  while (page.panels.length < LAYOUTS[layoutId].cells.length) page.panels.push(newPanel());
+}
+
+const ITEM_DEFAULTS = {
+  speech: { w: 180, font: 'comic', size: 'm', color: 'black' },
+  thought: { w: 180, font: 'comic', size: 'm', color: 'black' },
+  caption: { w: 210, font: 'comic', size: 'm', color: 'black' },
+  sound: { w: 240, font: 'bangers', size: 'm', color: 'orange' },
+};
+
+export function newItem(kind, x, y, text = '') {
+  const d = ITEM_DEFAULTS[kind] || ITEM_DEFAULTS.speech;
+  return {
+    id: newId(),
+    kind: ITEM_DEFAULTS[kind] ? kind : 'speech',
+    x: Math.round(Math.max(0, Math.min(INNER_W - d.w, x - d.w / 2))),
+    y: Math.round(Math.max(0, Math.min(INNER_H - 60, y - 30))),
+    w: d.w,
+    text,
+    font: d.font,
+    size: d.size,
+    color: d.color,
   };
 }
 
@@ -70,13 +149,20 @@ export function newBook(number) {
   return { id: newId(), number, title: '', pages: [newCardPage()], createdAt: now, updatedAt: now };
 }
 
-export const roleOf = (target) => (target === 'name' ? 'name' : target.split('.')[1]);
-
 export function getPart(page, target) {
+  if (!target) return null;
+  if (target.startsWith('item:')) return (page.items || []).find((it) => `item:${it.id}` === target) || null;
+  if (page.type !== 'card') return null;
   if (target === 'name') return page.name;
   const [boxId, role] = target.split('.');
   const b = page.boxes.find((x) => x.id === boxId);
   return b && (role === 'title' || role === 'body') ? b[role] : null;
+}
+
+// What kind of text a target is, which decides how big each size is.
+export function roleOf(page, target) {
+  if (target.startsWith('item:')) return getPart(page, target)?.kind === 'sound' ? 'sound' : 'bubble';
+  return target === 'name' ? 'name' : target.split('.')[1];
 }
 
 export function partStyle(p, role) {
@@ -85,15 +171,30 @@ export function partStyle(p, role) {
   return { fontFamily: font.css, fontSize: SIZE_PX[role][p.size] || SIZE_PX[role].m, color: color.hex };
 }
 
-export const pageLabel = (page) => page.name.text.trim() || 'New character';
+export function pageLabel(page) {
+  if (page.type === 'comic') {
+    const first = page.items.find((it) => it.text.trim());
+    return first ? first.text.trim() : 'Comic page';
+  }
+  return page.name.text.trim() || 'New character';
+}
 
 // What the helper is told about a page: every text part with its target and
-// style, plus each box's frame style. Kept small on purpose.
+// style. Kept small on purpose.
 export function describePage(page) {
-  const items = [{ target: 'name', ...page.name }];
+  const style = ({ text, font, size, color }) => ({ text, font, size, color });
+  if (page.type === 'comic') {
+    return {
+      kind: 'comic_page',
+      panels: LAYOUTS[page.layout].cells.length,
+      items: page.items.map((it) => ({ target: `item:${it.id}`, kind: it.kind, ...style(it) })),
+      boxes: [],
+    };
+  }
+  const items = [{ target: 'name', ...style(page.name) }];
   for (const b of page.boxes) {
-    items.push({ target: `${b.id}.title`, ...b.title });
-    items.push({ target: `${b.id}.body`, ...b.body });
+    items.push({ target: `${b.id}.title`, ...style(b.title) });
+    items.push({ target: `${b.id}.body`, ...style(b.body) });
   }
   return {
     kind: 'character_card',
@@ -109,9 +210,18 @@ export function describePage(page) {
 export function applyActions(page, actions) {
   let applied = 0;
   for (const a of Array.isArray(actions) ? actions : []) {
-    if (!a || typeof a.target !== 'string') continue;
+    if (!a) continue;
+    if (a.type === 'add_bubble') {
+      if (page.type !== 'comic' || !BUBBLE_KINDS.includes(a.bubble_kind) || page.items.length >= 40) continue;
+      // New bubbles land near the middle, stepped so several don't stack exactly.
+      const step = (page.items.length % 6) * 26;
+      page.items.push(newItem(a.bubble_kind, INNER_W / 2 - 60 + step, INNER_H / 2 - 60 + step, String(a.text ?? '').slice(0, 300)));
+      applied++;
+      continue;
+    }
+    if (typeof a.target !== 'string') continue;
     if (a.type === 'set_box_style') {
-      const b = page.boxes.find((x) => x.id === a.target);
+      const b = page.type === 'card' ? page.boxes.find((x) => x.id === a.target) : null;
       if (b && BOX_STYLES.includes(a.box_style)) { b.boxStyle = a.box_style; applied++; }
       continue;
     }
@@ -128,3 +238,19 @@ export function applyActions(page, actions) {
   }
   return applied;
 }
+
+// Bright colors for painting a drawing and for the pen.
+export const PAINT_COLORS = [
+  { hex: '#1B1B2F', label: 'Black' },
+  { hex: '#D93636', label: 'Red' },
+  { hex: '#F58A1F', label: 'Orange' },
+  { hex: '#FFD23F', label: 'Yellow' },
+  { hex: '#2E8B4E', label: 'Green' },
+  { hex: '#3CC4C4', label: 'Teal' },
+  { hex: '#1F57E0', label: 'Blue' },
+  { hex: '#7B4BD6', label: 'Purple' },
+  { hex: '#F7A3CB', label: 'Pink' },
+  { hex: '#8A5A3C', label: 'Brown' },
+  { hex: '#9AA3B5', label: 'Gray' },
+  { hex: '#FFFFFF', label: 'White' },
+];

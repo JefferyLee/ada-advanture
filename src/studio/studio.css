@@ -126,7 +126,7 @@ body { margin: 0; background: var(--desk); }
 .gn-thumb[aria-current='page'] { border: 4px solid var(--blue); background: var(--yellow-soft); }
 .gn-thumb-kind { font-size: 12px; color: var(--muted); }
 .gn-thumb-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gn-thumb-new { border-style: dashed; }
+.gn-thumb-new { height: 56px; border-style: dashed; font-size: 14px; }
 .gn-strip-delete {
   display: flex; align-items: center; gap: 6px; min-height: 44px; margin-top: auto; padding: 0; border: none;
   background: none; font-size: 14px; font-weight: 700; white-space: nowrap; color: var(--muted) !important;
@@ -157,10 +157,8 @@ body { margin: 0; background: var(--desk); }
 .gn-swatch[aria-pressed='true'] { border: 3px solid #fff; outline: 4px solid var(--blue); }
 
 /* The page itself. Sizes here are in page pixels; the editor scales it. */
-.gn-page {
-  background: var(--paper); border: 3px solid var(--ink); padding: 18px 26px;
-  display: flex; flex-direction: column; gap: 12px; overflow: hidden; color: var(--ink);
-}
+.gn-page { background: var(--paper); border: 3px solid var(--ink); overflow: hidden; color: var(--ink); }
+.gn-card { padding: 18px 26px; display: flex; flex-direction: column; gap: 12px; }
 .gn-text { min-width: 20px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.25; outline: none; cursor: text; }
 .gn-text:empty::before { content: attr(data-placeholder); color: #a4abbd; }
 .gn-name {
@@ -178,12 +176,79 @@ body { margin: 0; background: var(--desk); }
   margin: -10px -14px 8px; padding: 4px 14px; background: var(--yellow);
   border-bottom: 3px solid var(--ink); border-radius: 7px 7px 0 0;
 }
-.gn-portrait { min-height: 0; display: flex; align-items: center; justify-content: center; }
-.gn-portrait img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.gn-portrait { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
+/* A drawing fills the spot it is put in (a card's middle, a comic panel). The
+   color layer and the line art are the same size, so they land exactly on top
+   of each other. */
+.gn-drawing { position: absolute; inset: 0; }
+.gn-drawing img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .gn-portrait-empty {
   width: 100%; height: 90%; border: 3px dashed #9aa3b5; border-radius: 14px; background: #f6f8fc;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
   font-family: var(--ui); font-size: 20px; font-weight: 700; color: var(--muted);
+}
+
+/* Comic page. Everything inside is placed in page pixels. */
+.gn-comic { position: relative; }
+.gn-comic-inner { position: absolute; inset: 0; }
+.gn-cell { position: absolute; border: 3px solid var(--ink); background: #fff; overflow: hidden; }
+.gn-cell.is-selected { outline: 3px dashed var(--blue); outline-offset: 3px; }
+.gn-cell-add {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+  border: 2px dashed #9aa3b5; border-radius: 12px; background: #f6f8fc;
+  font-family: var(--ui); font-size: 16px; font-weight: 700; color: var(--muted) !important;
+}
+.gn-ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gn-ink.is-active { pointer-events: auto; touch-action: none; cursor: crosshair; }
+.gn-comic.is-drawing .gn-item { pointer-events: none; }
+.gn-item { position: absolute; }
+.gn-item .gn-text { text-align: center; }
+.gn-item-speech, .gn-item-thought { padding: 9px 14px; background: #fff; border: 3px solid var(--ink); }
+.gn-item-speech { border-radius: 20px 20px 20px 4px; }
+.gn-item-thought { border-radius: 40px; }
+/* The speech bubble's tail: a white corner poking out of the bottom edge. */
+.gn-item-speech::after {
+  content: ''; position: absolute; left: 22px; bottom: -11px; width: 16px; height: 16px; background: #fff;
+  border-right: 3px solid var(--ink); border-bottom: 3px solid var(--ink); transform: skewX(30deg) rotate(45deg);
+}
+.gn-item-thought::before, .gn-item-thought::after {
+  content: ''; position: absolute; background: #fff; border: 3px solid var(--ink); border-radius: 50%;
+}
+.gn-item-thought::before { left: 18px; bottom: -17px; width: 12px; height: 12px; }
+.gn-item-thought::after { left: 8px; bottom: -30px; width: 6px; height: 6px; }
+.gn-item-caption { padding: 5px 10px; background: var(--yellow); border: 2px solid var(--ink); }
+.gn-item-caption .gn-text { text-align: left; }
+.gn-item-sound { transform: rotate(-6deg); }
+.gn-item-sound .gn-text {
+  line-height: 1; letter-spacing: 3px; white-space: nowrap; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill;
+}
+.gn-item.is-selected { outline: 3px dashed var(--blue); outline-offset: 4px; }
+.gn-handle {
+  position: absolute; width: 34px; height: 34px; padding: 0; border: 2px solid var(--ink); border-radius: 50%;
+  background: var(--yellow); display: grid; place-items: center; touch-action: none;
+}
+.gn-handle-move { left: -22px; top: -22px; cursor: grab; }
+.gn-handle-delete { right: -22px; top: -22px; background: #fff; }
+.gn-handle-size { right: -22px; bottom: -22px; cursor: ew-resize; }
+
+/* Side panel pieces shared by the comic tools and Color It */
+.gn-tool { height: 62px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; font-size: 14px; line-height: 1.1; }
+.gn-dot { display: block; border-radius: 50%; background: var(--ink); margin: 0 auto; }
+.gn-swatch-small { width: 36px; height: 36px; }
+.gn-layout { height: 50px; padding: 6px; display: grid; gap: 3px; }
+.gn-layout span { border: 2px solid var(--ink); }
+.gn-paint { height: 52px; border: 2px solid var(--ink); border-radius: 12px; }
+.gn-paint[aria-pressed='true'] { border: 3px solid #fff; outline: 4px solid var(--blue); }
+
+/* Color It: a full-screen studio for one drawing */
+.gn-modal.gn-modal-full { padding: 0; background: var(--desk); display: block; }
+.gn-color { width: 100%; height: 100dvh; display: flex; flex-direction: column; }
+.gn-panel-left { border-left: none; border-right: 3px solid var(--ink); }
+.gn-color-stage { flex: 1; min-width: 0; min-height: 0; padding: 20px; display: grid; place-items: center; }
+.gn-color-canvas {
+  height: auto; background: #fff; border: 3px solid var(--ink);
+  box-shadow: 8px 8px 0 #c3ccdf; cursor: pointer; touch-action: manipulation;
 }
 
 /* Helper bar */

@@ -26,6 +26,8 @@ const FONTS = ['hand', 'bangers', 'comic', 'round'];
 const SIZES = ['s', 'm', 'l', 'xl'];
 const COLORS = ['black', 'blue', 'orange', 'green', 'purple', 'red'];
 const BOX_STYLES = ['none', 'box', 'banner'];
+const BUBBLE_KINDS = ['speech', 'thought', 'caption', 'sound'];
+const PAGE_KINDS = ['character_card', 'comic_page'];
 
 const optional = (values) => ({ anyOf: [{ type: 'string', enum: values }, { type: 'null' }] });
 
@@ -38,15 +40,16 @@ const ANSWER_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          type: { type: 'string', enum: ['set_text', 'set_style', 'set_box_style'] },
+          type: { type: 'string', enum: ['set_text', 'set_style', 'set_box_style', 'add_bubble'] },
           target: { type: 'string' },
           text: { anyOf: [{ type: 'string' }, { type: 'null' }] },
           font: optional(FONTS),
           size: optional(SIZES),
           color: optional(COLORS),
           box_style: optional(BOX_STYLES),
+          bubble_kind: optional(BUBBLE_KINDS),
         },
-        required: ['type', 'target', 'text', 'font', 'size', 'color', 'box_style'],
+        required: ['type', 'target', 'text', 'font', 'size', 'color', 'box_style', 'bubble_kind'],
         additionalProperties: false,
       },
     },
@@ -62,8 +65,10 @@ const oneOf = (value, allowed) => (allowed.includes(value) ? value : null);
 // Rebuild the page description from the request, keeping only what the model
 // needs and capping sizes. Nothing from the browser is passed through as-is.
 function cleanPage(page) {
+  const kind = oneOf(page?.kind, PAGE_KINDS) || 'character_card';
   const items = (Array.isArray(page?.items) ? page.items : []).slice(0, MAX_ITEMS).map((it) => ({
-    target: clip(it?.target, 40),
+    target: clip(it?.target, 60),
+    ...(BUBBLE_KINDS.includes(it?.kind) ? { kind: it.kind } : {}),
     text: clip(it?.text, MAX_ITEM_TEXT),
     font: oneOf(it?.font, FONTS),
     size: oneOf(it?.size, SIZES),
@@ -73,7 +78,8 @@ function cleanPage(page) {
     id: clip(b?.id, 40),
     box_style: oneOf(b?.box_style, BOX_STYLES),
   })).filter((b) => b.id);
-  return { kind: 'character_card', has_drawing: Boolean(page?.has_drawing), items, boxes };
+  if (kind === 'comic_page') return { kind, panels: Math.min(12, Math.max(0, Number(page?.panels) || 0)), items, boxes: [] };
+  return { kind, has_drawing: Boolean(page?.has_drawing), items, boxes };
 }
 
 function cleanHistory(history) {
@@ -89,8 +95,11 @@ function cleanHistory(history) {
 function cleanActions(actions, page) {
   const targets = new Set(page.items.map((it) => it.target));
   const boxIds = new Set(page.boxes.map((b) => b.id));
-  return (Array.isArray(actions) ? actions : []).filter((a) =>
-    a && (a.type === 'set_box_style' ? boxIds.has(a.target) : targets.has(a.target)));
+  return (Array.isArray(actions) ? actions : []).filter((a) => {
+    if (!a) return false;
+    if (a.type === 'add_bubble') return page.kind === 'comic_page' && BUBBLE_KINDS.includes(a.bubble_kind);
+    return a.type === 'set_box_style' ? boxIds.has(a.target) : targets.has(a.target);
+  });
 }
 
 export async function onRequestPost({ request, env }) {

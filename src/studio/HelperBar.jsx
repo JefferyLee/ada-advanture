@@ -8,13 +8,6 @@ export const HELPER_NAME = 'Creator Helper';
 const SpeechRecognition =
   typeof window !== 'undefined' ? window.SpeechRecognition || window.webkitSpeechRecognition : null;
 
-const CHIPS = [
-  { label: 'Fix my spelling', withBox: 'Fix my spelling in this box.', withoutBox: 'Fix my spelling on this page.' },
-  { label: 'Make it sound cooler', withBox: 'Make this box sound cooler.', withoutBox: 'Make this page sound cooler.' },
-  { label: 'Give me 3 ideas', withBox: 'Give me 3 ideas for this box.', withoutBox: 'Give me 3 ideas for this character.' },
-  { label: 'Tidy up this box', withBox: 'Tidy up this box.', withoutBox: 'Tidy up this page.' },
-];
-
 const PROBLEMS = {
   off: "Your helper isn't switched on yet. Ask a grown-up to set it up.",
   locked: 'Your helper needs a grown-up to sign in first.',
@@ -46,7 +39,7 @@ async function askHelper(body) {
 
 // The bar fixed to the bottom of the editor: type or talk to the helper, see
 // its answer, and keep or put back whatever it changed.
-export default function HelperBar({ getPage, selected, changePending, onApply, onKeep, onPutBack }) {
+export default function HelperBar({ chips, hint, getPage, selected, changePending, onApply, onKeep, onPutBack }) {
   const [text, setText] = useState('');
   const [status, setStatus] = useState('idle'); // idle | thinking
   const [exchange, setExchange] = useState(null); // { said, reply }
@@ -110,9 +103,9 @@ export default function HelperBar({ getPage, selected, changePending, onApply, o
         </div>
       ) : (
         <div className="gn-chips">
-          {CHIPS.map((c) => (
+          {chips.map((c) => (
             <button key={c.label} className="gn-chip" disabled={status === 'thinking'}
-              onClick={() => send(selected && selected !== 'name' ? c.withBox : c.withoutBox)}>{c.label}</button>
+              onClick={() => send(c.message)}>{c.label}</button>
           ))}
         </div>
       )}
@@ -124,7 +117,7 @@ export default function HelperBar({ getPage, selected, changePending, onApply, o
           <Icon name="mic" size={28} />
         </button>
         <input id="gn-ask" className={`gn-ask${listening ? ' is-listening' : ''}`} value={text} maxLength={400}
-          autoComplete="off" placeholder={listening ? 'Listening...' : 'Type or talk. Try: give my hero one more power'}
+          autoComplete="off" placeholder={listening ? 'Listening...' : `Type or talk. Try: ${hint}`}
           onChange={(e) => setText(e.target.value)} />
         <button type="submit" className="gn-btn gn-btn-blue gn-btn-big" disabled={!text.trim() || status === 'thinking'}>
           Send <Icon name="arrow" />
