@@ -121,7 +121,7 @@ export default function PhotoImport({ file, onCancel, onDone }) {
               <div className="gn-import-view gn-import-photo"><canvas ref={photoRef} /></div>
             </section>
             <section className="gn-import-pane">
-              <h3 className="gn-h3 gn-blue">Cleaned Up</h3>
+              <h3 className="gn-h3 gn-accent-text">Cleaned Up</h3>
               <div className="gn-import-view"><canvas ref={cleanRef} /></div>
             </section>
             <section className="gn-import-tools">
@@ -142,7 +142,7 @@ export default function PhotoImport({ file, onCancel, onDone }) {
               </button>
               <p className="gn-note">Your real photo is always kept safe.</p>
               {empty && <p className="gn-note gn-note-warn">I can't see any lines yet. Try making them darker.</p>}
-              <button className="gn-btn gn-btn-blue gn-btn-big gn-push-down" disabled={!bitmap || empty || busy}
+              <button className="gn-btn gn-btn-primary gn-btn-big gn-push-down" disabled={!bitmap || empty || busy}
                 onClick={finish}>
                 Looks Good! <Icon name="arrow" />
               </button>

@@ -354,9 +354,11 @@ export default function Editor({ book: initialBook, saveState, onChange, onExit 
   const addItem = (kind) => {
     const rects = panelRects(page.layout);
     const at = live?.startsWith('panel:') ? rects[page.panels.findIndex((p) => `panel:${p.id}` === live)] : null;
+    // Each new one lands a good step away from the last, so they don't pile up.
+    const n = page.items.length % 5;
     const item = at
-      ? newItem(kind, at.x + at.w / 2, at.y + 50)
-      : newItem(kind, INNER_W / 2 + (page.items.length % 5) * 24, INNER_H / 2 + (page.items.length % 5) * 24);
+      ? newItem(kind, at.x + at.w / 2, at.y + 50 + n * 34)
+      : newItem(kind, INNER_W / 2 - 120 + n * 60, INNER_H / 2 - 150 + n * 70);
     update((b) => { onPage(b).items.push(item); });
     setSelected(`item:${item.id}`);
     setFocusItem(item.id);

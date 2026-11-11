@@ -93,7 +93,7 @@ export default function HelperBar({ chips, hint, getPage, selected, changePendin
           </span>
           {changePending && exchange.reply && (
             <>
-              <button className="gn-btn gn-btn-blue" onClick={onKeep}><Icon name="check" size={20} stroke={2.8} /> Keep It</button>
+              <button className="gn-btn gn-btn-primary" onClick={onKeep}><Icon name="check" size={20} stroke={2.8} /> Keep It</button>
               <button className="gn-btn" onClick={onPutBack}>Put It Back</button>
             </>
           )}
@@ -119,7 +119,7 @@ export default function HelperBar({ chips, hint, getPage, selected, changePendin
         <input id="gn-ask" className={`gn-ask${listening ? ' is-listening' : ''}`} value={text} maxLength={400}
           autoComplete="off" placeholder={listening ? 'Listening...' : `Type or talk. Try: ${hint}`}
           onChange={(e) => setText(e.target.value)} />
-        <button type="submit" className="gn-btn gn-btn-blue gn-btn-big" disabled={!text.trim() || status === 'thinking'}>
+        <button type="submit" className="gn-btn gn-btn-primary gn-btn-big" disabled={!text.trim() || status === 'thinking'}>
           Send <Icon name="arrow" />
         </button>
       </form>
