@@ -544,7 +544,7 @@ html[data-theme='crafty'] .gn-stage .gn-page { border-color: rgba(27, 27, 47, 0.
   accent-color: var(--accent);
 }
 .gn-modal-card {
-  width: min(1320px, 100%); max-height: 100%; overflow: auto; padding: 18px 20px 20px; background: var(--desk);
+  width: min(1760px, 100%); max-height: 100%; overflow: auto; padding: 18px 20px 20px; background: var(--desk);
   border: var(--btn-border); border-radius: 18px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
   display: flex; flex-direction: column; gap: 14px;
 }
@@ -557,13 +557,29 @@ html[data-theme='crafty'] .gn-modal-head .gn-h2 { color: #2e2417; }
   display: flex; flex-direction: column; gap: 10px;
 }
 .gn-import-pane { flex: 1 1 360px; min-width: 0; }
+/* The photo is the one you work on, so it gets the most room. */
+.gn-import-pane:first-child { flex: 1.5 1 440px; }
 .gn-import-tools { flex: 1 1 260px; max-width: 320px; gap: 14px; }
 .gn-import-view {
   flex: 1; min-height: 300px; border: 2px solid rgba(0, 0, 0, 0.6); border-radius: 8px; background: #fff;
   display: grid; place-items: center; overflow: hidden;
 }
-.gn-import-photo { background: #6b6257; }
+.gn-import-photo { background: #6b6257; padding: 26px; overflow: visible; }
 .gn-import-view canvas { display: block; max-width: 100%; max-height: 56vh; }
+/* The photo with the paper's four corners marked on it. */
+.gn-quad { position: relative; }
+.gn-quad canvas { width: 100%; height: 100%; max-height: none; }
+.gn-quad svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gn-quad-shade { fill: rgba(0, 0, 0, 0.5); }
+.gn-quad-line { fill: none; stroke: var(--yellow); stroke-width: 3; stroke-dasharray: 9 6; vector-effect: non-scaling-stroke; }
+.gn-corner {
+  position: absolute; width: 44px; height: 44px; padding: 0; transform: translate(-50%, -50%);
+  border: 3px solid var(--ink); border-radius: 50%; background: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), 0 3px 8px rgba(0, 0, 0, 0.5);
+  cursor: grab; touch-action: none;
+}
+.gn-corner:active { cursor: grabbing; }
+.gn-btn-small { min-height: 46px; padding: 0 8px; font-size: 15px; }
 .gn-import-tools input[type='range'] { width: 100%; height: 44px; }
 .gn-range-ends { display: flex; justify-content: space-between; font-size: 14px; color: var(--fg-muted); }
 
