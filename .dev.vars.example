@@ -1,0 +1,14 @@
+# Settings for running the studio's server functions on your own computer:
+#   cp .dev.vars.example .dev.vars
+#   npm run build && npx wrangler pages dev dist
+# .dev.vars is ignored by git. Never commit a real key.
+
+# Your Anthropic API key (from the Anthropic Console).
+ANTHROPIC_API_KEY=
+
+# Skip the Cloudflare Access check. Only honoured on localhost.
+STUDIO_DEV_NO_AUTH=1
+
+# Optional: a different model or helper name.
+# HELPER_MODEL=claude-opus-5-5
+# HELPER_NAME=Creator Helper
