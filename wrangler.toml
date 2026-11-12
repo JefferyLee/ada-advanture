@@ -7,6 +7,13 @@ binding = "DB"
 database_name = "ada-leaderboard"
 database_id = "c01e14af-e831-41b0-9ac7-745e66a8cfb6"
 
+# Cloudflare Access in front of /studio and /api/studio (one "Ada Studio"
+# application covering ada-advanture.pages.dev and *.ada-advanture.pages.dev).
+# Not secrets: the middleware uses them to check the Access token.
+[vars]
+ACCESS_TEAM_DOMAIN = "satosium.cloudflareaccess.com"
+ACCESS_AUD = "1ef690110702cf2fdb9afe432b69c81a244798fbc88b87292f65c2f08b6d28fb"
+
 # ---- Graphic Novel Creator: sync between devices ------------------------
 # The studio keeps books and pictures on this device and, when the two
 # bindings below exist, also copies them to the server so the iPad and the
@@ -16,15 +23,16 @@ database_id = "c01e14af-e831-41b0-9ac7-745e66a8cfb6"
 #   npx wrangler d1 create ada-studio          (prints the database_id to paste below)
 #   npx wrangler r2 bucket create ada-studio
 # then uncomment this block and deploy. The tables create themselves.
-#
-# [[d1_databases]]
-# binding = "STUDIO_DB"
-# database_name = "ada-studio"
-# database_id = "PASTE-THE-ID-HERE"
-#
-# [[r2_buckets]]
-# binding = "STUDIO_BUCKET"
-# bucket_name = "ada-studio"
+
+[[d1_databases]]
+binding = "STUDIO_DB"
+database_name = "ada-studio"
+database_id = "fbf413f1-00a5-4760-9898-d57f8cb3f864"
+
+[[r2_buckets]]
+binding = "STUDIO_BUCKET"
+bucket_name = "ada-studio"
+
 #
 # Preview deployments use the same storage as production unless given their
 # own. To keep test work away from the real books, create a second pair
