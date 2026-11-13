@@ -61,4 +61,4 @@ A second app in the same Pages project, for Ada (8) to make her graphic novels. 
 
 - **Tests** (`tests/studio/`): scripts, not a framework. `npm run test:studio` checks paper detection, straightening, just-my-character and neat lines in Node. The four `.cjs` files drive the built app in a real browser with Playwright (not a dependency of this repo; each file's header says how to run it): `card`, `comic` and `photo-import` run against `npm run preview`, `sync` needs `npm run studio:local` with empty storage. Run them after changing the studio; they caught real bugs while it was being built.
 
-Not built yet: helper-driven coloring and part resizing (needs the helper to see the drawing). Sync runs against the real D1 and R2 (live since 2026-11-12); `sync.cjs` currently times out at its step 3 (an iPad edit reaching the iMac), on the code from before neat lines too.
+Not built yet: helper-driven coloring and part resizing (needs the helper to see the drawing). Sync runs against the real D1 and R2 (live since 2026-11-12).

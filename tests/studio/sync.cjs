@@ -23,7 +23,12 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
     return {
       ctx, page, stage,
       label: () => page.locator('.gn-saved').textContent().then((t) => t.trim()),
-      synced: () => page.waitForFunction(() => /all devices/.test(document.querySelector('.gn-saved')?.textContent || ''), null, { timeout: 15000 }),
+      // Right after an edit the label can still say "all devices" for a moment (until React
+      // has passed the edit up), so first give it a chance to change, then wait for it to settle.
+      synced: async () => {
+        await page.waitForFunction(() => !/all devices/.test(document.querySelector('.gn-saved')?.textContent || ''), null, { timeout: 2500 }).catch(() => {});
+        await page.waitForFunction(() => /all devices/.test(document.querySelector('.gn-saved')?.textContent || ''), null, { timeout: 15000 });
+      },
       poke: () => page.evaluate(() => window.dispatchEvent(new Event('online'))),
       box: (label) => stage.getByRole('textbox', { name: label }).first(),
       titles: () => page.locator('.gn-cover-title').allTextContents(),
