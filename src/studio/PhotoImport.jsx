@@ -41,6 +41,12 @@ function cropBox(result) {
   return { sx, sy, w: Math.min(result.width, x1 + 1 + MARGIN) - sx, h: Math.min(result.height, y1 + 1 + MARGIN) - sy };
 }
 
+const inkOf = (result) => {
+  let n = 0;
+  for (let i = 3; i < result.data.length; i += 4) if (result.data[i]) n++;
+  return n;
+};
+
 // "Just my character": clear everything around the main figure.
 function onlyFigure(result) {
   const { width: w, height: h, data } = result;
@@ -141,10 +147,10 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
       }
       const straight = flat.current.pixels;
       if (!straight) { cleaned.current = null; setProblem('corners'); return; }
-      let result = cleanLineArt(straight, { darkness, smudge });
-      if (justFigure && result.bbox) result = onlyFigure(result);
+      const raw = cleanLineArt(straight, { darkness, smudge });
+      const result = justFigure && raw.bbox ? onlyFigure(raw) : raw;
       const svg = neat && result.bbox ? neatFor(result) : null;
-      cleaned.current = { ...result, svg };
+      cleaned.current = { ...result, svg, raw, figure: justFigure ? result : null };
       setProblem(result.bbox ? null : 'empty');
       const canvas = cleanRef.current;
       if (!canvas) return;
@@ -184,24 +190,34 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
     const result = cleaned.current;
     if (!result?.bbox) return;
     setBusy(true);
-    const { sx, sy, w, h } = cropBox(result);
-    const pencil = document.createElement('canvas');
-    pencil.width = w;
-    pencil.height = h;
-    pencil.getContext('2d').putImageData(new ImageData(result.data, result.width, result.height), -sx, -sy);
-    // Both kinds of lines are kept, so Ada can switch between them later.
-    const svg = result.svg || neatFor(result);
-    const tidy = document.createElement('canvas');
-    tidy.width = w;
-    tidy.height = h;
-    tidy.getContext('2d').drawImage(await svgImage(svg), 0, 0, w, h);
-    const [pencilBlob, neatBlob, origBlob] = await Promise.all([
-      toBlob(pencil, 'image/png'), toBlob(tidy, 'image/png'), toBlob(source.canvas, 'image/jpeg', 0.85),
-    ]);
-    const vecBlob = new Blob([svg], { type: 'image/svg+xml' });
-    const pencilLines = { blob: pencilBlob };
-    const neatLines = { blob: neatBlob, vecBlob };
-    await onDone({ ...(neat ? neatLines : pencilLines), alt: neat ? pencilLines : neatLines, origBlob, w, h });
+    // Every version is made now, so Ada can switch on the page later: pencil or
+    // neat lines, each with everything or just the character. When nothing is
+    // around the character those two are the same, and only one is kept.
+    const { raw, svg } = result;
+    const figure = result.figure || onlyFigure(raw);
+    const both = Boolean(figure.bbox) && inkOf(figure) < inkOf(raw);
+    const shownSource = justFigure ? figure : raw;
+    const versions = [];
+    for (const [res, isFigure] of both ? [[raw, false], [figure, true]] : [[raw, false]]) {
+      const { sx, sy, w, h } = cropBox(res);
+      const pencil = document.createElement('canvas');
+      pencil.width = w;
+      pencil.height = h;
+      pencil.getContext('2d').putImageData(new ImageData(res.data, res.width, res.height), -sx, -sy);
+      const lines = (res === shownSource && svg) || neatFor(res);
+      const tidy = document.createElement('canvas');
+      tidy.width = w;
+      tidy.height = h;
+      tidy.getContext('2d').drawImage(await svgImage(lines), 0, 0, w, h);
+      const [pencilBlob, neatBlob] = await Promise.all([toBlob(pencil, 'image/png'), toBlob(tidy, 'image/png')]);
+      const box = { x: sx, y: sy, w, h };
+      versions.push(
+        { neat: false, figure: isFigure, blob: pencilBlob, box },
+        { neat: true, figure: isFigure, blob: neatBlob, vecBlob: new Blob([lines], { type: 'image/svg+xml' }), box },
+      );
+    }
+    const origBlob = await toBlob(source.canvas, 'image/jpeg', 0.85);
+    await onDone({ versions, look: { neat, figure: both && justFigure }, origBlob });
   };
 
   const aspect = source ? source.w / source.h : 4 / 3;
@@ -284,7 +300,7 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
               {problem === 'corners' && <p className="gn-note gn-note-warn">Those dots don't make a page. Move them to the four corners.</p>}
               <button className="gn-btn gn-btn-primary gn-btn-big gn-push-down" disabled={!source || Boolean(problem) || busy}
                 onClick={finish}>
-                Looks Good! <Icon name="arrow" />
+                {busy ? 'Working...' : 'Looks Good!'} <Icon name="arrow" />
               </button>
             </section>
           </div>

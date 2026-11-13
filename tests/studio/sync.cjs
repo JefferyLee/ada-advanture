@@ -1,5 +1,5 @@
 // Browser test: two devices and a third fresh one against the sync server (books, pictures,
-// an offline conflict that keeps both, the New Photos tray, deleting).
+// an offline conflict that keeps both, My Photos, deleting).
 // Needs an EMPTY local server each run, with the access check off:
 //       echo STUDIO_DEV_NO_AUTH=1 >> .dev.vars      (once)
 //       rm -rf .wrangler/state && npm run studio:local      (in another terminal)
@@ -109,7 +109,7 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   log('  iPad copy has the iMac text:', await pad.box('ABOUT text').textContent(), '| drawing:', await pad.stage.locator('.gn-portrait img').count(), 'layers');
   await pad.page.getByRole('button', { name: 'My Books' }).click();
 
-  // 5. New Photos: taken on the iPad, used on the iMac
+  // 5. My Photos: taken on the iPad, used on the iMac, kept on both and marked used
   const [ch2] = await Promise.all([pad.page.waitForEvent('filechooser'), pad.page.getByRole('button', { name: 'Add Photos' }).click()]);
   await ch2.setFiles([photo('a.jpg'), photo('b.jpg')]);
   await pad.page.waitForFunction(() => document.querySelectorAll('.gn-tray-item').length === 2);
@@ -131,8 +131,9 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   await mac.synced();
   await mac.page.getByRole('button', { name: 'My Books' }).click();
   await pad.poke();
-  await pad.page.waitForFunction(() => document.querySelectorAll('.gn-tray-item').length === 1, null, { timeout: 15000 });
-  log('  used one on the iMac: iMac tray', await mac.page.locator('.gn-tray-item').count(), '| iPad tray', await pad.page.locator('.gn-tray-item').count());
+  await pad.page.waitForFunction(() => document.querySelectorAll('.gn-photo-tag-used').length === 1, null, { timeout: 15000 });
+  const tags = (d) => d.page.locator('.gn-photo-tag').allTextContents().then((t) => t.map((x) => x.trim()).join(','));
+  log('  used one on the iMac: iMac photos', await tags(mac), '| iPad photos', await tags(pad));
 
   // 6. Deleting a book on one device removes it on the other
   await mac.page.locator('.gn-cover-wrap', { hasText: 'copy' }).getByRole('button', { name: /Delete/ }).click();
@@ -146,8 +147,8 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   const tv = await device('new', { width: 1440, height: 960 });
   await tv.page.goto(URL);
   await tv.page.locator('.gn-cover-title').first().waitFor({ timeout: 15000 });
-  await tv.page.waitForFunction(() => document.querySelectorAll('.gn-tray-item img').length === 1, null, { timeout: 15000 });
-  log('7 fresh device:', JSON.stringify(await tv.titles()), '| pages', await tv.page.locator('.gn-cover-meta').allTextContents(), '| tray', await tv.page.locator('.gn-tray-item').count());
+  await tv.page.waitForFunction(() => document.querySelectorAll('.gn-tray-item img').length === 2, null, { timeout: 15000 });
+  log('7 fresh device:', JSON.stringify(await tv.titles()), '| pages', await tv.page.locator('.gn-cover-meta').allTextContents(), '| photos', await tags(tv));
   log('errors:', errors.length ? errors : 'none');
   await browser.close();
 })().catch((e) => { console.error('FAILED', String(e).slice(0, 1200)); process.exit(1); });

@@ -80,38 +80,46 @@ const log = (...a) => console.log(...a);
   log('7 on the card: drawing', nat.join('x'), '(trimmed to the lines)');
   await page.screenshot({ path: S + '/shot-corners-card.png' });
 
-  // Neat lines are shown as SVG; the switch swaps to the pencil lines (same size) and back.
+  // On the page: Neat Lines and Just My Character switch between the versions made at import.
   const shown = () => page.locator('.gn-stage .gn-portrait img').last().evaluate((e) => new Promise((r) => {
     const done = () => r({ w: e.naturalWidth, h: e.naturalHeight, src: e.src });
     e.complete && e.naturalWidth ? done() : (e.onload = done);
   }));
-  const neatImg = await shown();
-  await page.getByRole('button', { name: 'My Pencil Lines' }).click();
-  await page.getByRole('button', { name: 'Neat Lines' }).waitFor();
-  await page.waitForTimeout(300);
-  const pencilImg = await shown();
-  await page.getByRole('button', { name: 'Neat Lines' }).click();
-  await page.getByRole('button', { name: 'My Pencil Lines' }).waitFor();
-  await page.waitForTimeout(300);
-  const backImg = await shown();
-  log('8 lines switch: pencil differs', pencilImg.src !== neatImg.src, '| same size', pencilImg.w === neatImg.w && pencilImg.h === neatImg.h,
-    '| back to neat', backImg.src === neatImg.src);
+  const side = page.locator('.gn-panel');
+  const flip = async (name) => {
+    const b = side.getByRole('button', { name });
+    const was = await b.getAttribute('aria-pressed');
+    await b.click();
+    await page.waitForFunction(([n, w]) => [...document.querySelectorAll('.gn-panel button')]
+      .some((e) => e.textContent.includes(n) && e.getAttribute('aria-pressed') !== w), [name, was]);
+    await page.waitForTimeout(300);
+    return shown();
+  };
+  const start = await shown();
+  const pencil = await flip('Neat Lines');
+  const neatAgain = await flip('Neat Lines');
+  log('8 Neat Lines off: other lines', pencil.src !== start.src, '| same size', pencil.w === start.w && pencil.h === start.h,
+    '| on again: back', neatAgain.src === start.src);
+  const everything = await flip('Just My Character');
+  const figureAgain = await flip('Just My Character');
+  log('  Just My Character off: drawing', `${start.w}x${start.h} -> ${everything.w}x${everything.h}`,
+    '(bigger, the arms are back)', everything.w * everything.h > start.w * start.h, '| on again: back', figureAgain.src === start.src);
 
-  // Colored, then switched: the color layer is worked out again for the other lines.
+  // Colored, then switched: the color layer is worked out again for the other version.
   await page.getByRole('button', { name: 'Color It' }).click();
   const art = page.locator('.gn-color canvas').first();
   await art.waitFor();
   await page.waitForTimeout(500);
   const box = await art.boundingBox();
-  await art.click({ position: { x: box.width * 0.5, y: box.height * 0.08 } }); // just under the top edge of the drawing
-  await page.getByRole('button', { name: /Done|Looks Good/ }).click();
+  await art.click({ position: { x: box.width * 0.5, y: box.height * 0.08 } });
+  await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForSelector('.gn-color', { state: 'detached' });
   const layers = () => page.locator('.gn-stage .gn-portrait img').count();
   const before = await layers();
-  await page.getByRole('button', { name: 'My Pencil Lines' }).click();
-  await page.getByRole('button', { name: 'Neat Lines' }).waitFor();
-  await page.waitForTimeout(500);
-  log('9 colored then switched: layers', before, '->', await layers());
+  await flip('Neat Lines');
+  const afterLines = await layers();
+  await flip('Just My Character');
+  log('9 colored then switched: layers', before, '-> lines', afterLines, '-> everything', await layers());
   log('errors:', errors.length ? errors : 'none');
   await browser.close();
 })().catch((e) => { console.error('FAILED', e); process.exit(1); });

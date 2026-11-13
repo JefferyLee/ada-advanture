@@ -367,7 +367,7 @@ html[data-theme='crafty'] .gn-cover { border-radius: 4px 12px 12px 4px; }
   border-radius: 22px; background: var(--chip); font-size: 15px; font-weight: 700; color: var(--ctl-fg) !important;
 }
 
-/* New Photos: photos waiting to be put on a page */
+/* My Photos: every photo taken, new ones first */
 .gn-tray { margin-top: 12px; display: flex; flex-direction: column; gap: 14px; }
 .gn-tray-head { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
 .gn-tray-grid { display: flex; flex-wrap: wrap; gap: 18px; }
@@ -378,6 +378,11 @@ html[data-theme='crafty'] .gn-cover { border-radius: 4px 12px 12px 4px; }
 .gn-tray-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 7px; display: block; }
 .gn-tray-pick:hover, .gn-tray-pick:focus-visible { outline: 4px solid var(--accent); outline-offset: 2px; }
 .gn-tray-delete { right: -14px; top: -14px; background: #fff; }
+.gn-photo-tag {
+  position: absolute; left: 8px; top: 8px; padding: 2px 10px; border-radius: 12px; border: 2px solid #1b1b2f;
+  background: #ffd23f; color: #1b1b2f; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 4px;
+}
+.gn-photo-tag-used { background: #fff; }
 .gn-thumb-wait { color: #fff; font-weight: 700; }
 .gn-picker { width: min(900px, 100%); }
 .gn-picker > .gn-btn { align-self: flex-start; }

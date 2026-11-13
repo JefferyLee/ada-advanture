@@ -18,7 +18,8 @@ const API = '/api/studio';
 class SyncOff extends Error {}
 
 const idsOf = (image) => (image
-  ? [image.id, image.vecId, image.origId, image.colorId, image.alt?.id, image.alt?.vecId].filter(Boolean)
+  ? [image.id, image.vecId, image.origId, image.colorId, image.alt?.id, image.alt?.vecId,
+    ...(image.versions || []).flatMap((v) => [v.id, v.vecId])].filter(Boolean)
   : []);
 
 // Every picture a document refers to.

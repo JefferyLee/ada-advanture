@@ -86,7 +86,31 @@ const box = (id, title, color) => ({
 
 // A drawing is { id, origId, w, h } plus, once colored, { colorId, fills, gap }.
 // id is the line art shown (PNG); with neat lines vecId is the same lines as SVG.
-// alt holds the other kind of lines ({ id, vecId? }) so Ada can switch back.
+// A drawing imported from a photo also keeps every version made then:
+//   versions: [{ neat, figure, id, vecId?, box: { x, y, w, h } }]
+// (pencil or neat lines, just the character or everything; box is where that
+// version was cut from the straightened photo), and look: { neat, figure } says
+// which one is shown. Drawings from before that have `alt` instead: the other
+// kind of lines, same size.
+
+export const sameLook = (v, look) => v.neat === look.neat && v.figure === look.figure;
+
+export function drawingLook(image) {
+  return image.look || { neat: Boolean(image.vecId), figure: false };
+}
+
+export function drawingVersions(image) {
+  if (image.versions) return image.versions;
+  if (!image.alt) return [];
+  const box = { x: 0, y: 0, w: image.w, h: image.h };
+  return [
+    { neat: Boolean(image.vecId), figure: false, id: image.id, vecId: image.vecId, box },
+    { neat: Boolean(image.alt.vecId), figure: false, id: image.alt.id, vecId: image.alt.vecId, box },
+  ];
+}
+
+// The fields that say which version is on show.
+export const shownVersion = (v) => ({ id: v.id, ...(v.vecId ? { vecId: v.vecId } : {}), w: v.box.w, h: v.box.h });
 
 export function newCardPage() {
   return {

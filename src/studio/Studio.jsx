@@ -132,7 +132,7 @@ export default function Studio() {
     send();
   };
 
-  // Photos for the New Photos tray: kept here and sent to the other devices.
+  // Photos for My Photos: kept here and sent to the other devices.
   const addPhotos = async (files) => {
     let failed = 0;
     for (const file of files) {
@@ -150,14 +150,23 @@ export default function Studio() {
     send();
   };
 
-  const dropPhoto = async (id) => {
-    await removePhoto(id);
-    setPhotos((ps) => ps.filter((p) => p.id !== id));
+  // A photo stays in My Photos after it is put on a page; it is only marked,
+  // so the shelf can show the new ones first.
+  const markPhotoUsed = async (id) => {
+    const photo = photos.find((p) => p.id === id);
+    if (!photo || photo.usedAt) return;
+    const used = { ...photo, usedAt: Date.now() };
+    await savePhoto(used);
+    setPhotos((ps) => ps.map((p) => (p.id === id ? used : p)));
     send();
   };
 
-  const deletePhoto = (photo) => {
-    if (window.confirm('Delete this photo?')) dropPhoto(photo.id);
+  const deletePhoto = async (photo) => {
+    const ask = photo.usedAt ? 'Delete this photo? Your drawing on the page stays.' : 'Delete this photo?';
+    if (!window.confirm(ask)) return;
+    await removePhoto(photo.id);
+    setPhotos((ps) => ps.filter((p) => p.id !== photo.id));
+    send();
   };
 
   const saveLabel = saveState === 'saving' ? 'Saving...'
@@ -179,7 +188,7 @@ export default function Studio() {
           saveLabel={saveLabel}
           saveOk={saveOk}
           onChange={changeBook}
-          onPhotoUsed={dropPhoto}
+          onPhotoUsed={markPhotoUsed}
           onExit={() => { flush(); setOpenId(null); }}
         />
       ) : (

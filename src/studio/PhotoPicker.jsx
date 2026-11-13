@@ -1,8 +1,8 @@
-import { PhotoThumb } from './Bookshelf.jsx';
+import { PhotoTag, PhotoThumb, newFirst } from './Bookshelf.jsx';
 import Icon from './Icon.jsx';
 
-// Shown when adding a drawing while photos are waiting in the New Photos
-// tray: use one of those, or take or choose another on this device.
+// Shown when adding a drawing while there are photos in My Photos: use one of
+// those (new ones first), or take or choose another on this device.
 export default function PhotoPicker({ photos, onPick, onDevice, onCancel }) {
   return (
     <div className="gn-modal" role="dialog" aria-modal="true" aria-label="Pick a photo">
@@ -12,10 +12,11 @@ export default function PhotoPicker({ photos, onPick, onDevice, onCancel }) {
           <button className="gn-btn" onClick={onCancel}><Icon name="close" /> Cancel</button>
         </div>
         <div className="gn-tray-grid">
-          {photos.map((photo, i) => (
-            <button key={photo.id} className="gn-tray-item gn-tray-pick" aria-label={`New photo ${i + 1}`}
-              onClick={() => onPick(photo)}>
+          {newFirst(photos).map((photo, i) => (
+            <button key={photo.id} className="gn-tray-item gn-tray-pick"
+              aria-label={`${photo.usedAt ? 'Used photo' : 'New photo'} ${i + 1}`} onClick={() => onPick(photo)}>
               <PhotoThumb imageId={photo.imageId} />
+              <PhotoTag photo={photo} />
             </button>
           ))}
         </div>

@@ -12,6 +12,14 @@ export function PhotoThumb({ imageId }) {
   return url ? <img src={url} alt="A photo of a drawing" /> : <span className="gn-thumb-wait">...</span>;
 }
 
+// My Photos: the ones not on a page yet come first, newest first in each group.
+export const newFirst = (photos) => [...photos.filter((p) => !p.usedAt), ...photos.filter((p) => p.usedAt)];
+
+// A corner tag on a photo: "New" until it has been put on a page.
+export const PhotoTag = ({ photo }) => (photo.usedAt
+  ? <span className="gn-photo-tag gn-photo-tag-used"><Icon name="check" size={14} stroke={3} /> Used</span>
+  : <span className="gn-photo-tag">New</span>);
+
 export default function Bookshelf({
   books, photos, saveLabel, saveOk, onOpen, onCreate, onDelete, onAddPhotos, onDeletePhoto,
 }) {
@@ -72,22 +80,23 @@ export default function Bookshelf({
           <p className="gn-hint-big">Tap New Episode to start your first book.</p>
         )}
 
-        <section className="gn-tray" aria-label="New photos">
+        <section className="gn-tray" aria-label="My photos">
           <div className="gn-tray-head">
-            <h2 className="gn-h2">New Photos</h2>
+            <h2 className="gn-h2">My Photos</h2>
             <button className="gn-btn gn-btn-yellow" onClick={() => fileRef.current?.click()}>
               <Icon name="camera" /> Add Photos
             </button>
           </div>
           {photos.length === 0 ? (
             <p className="gn-hint-big">
-              Take photos of your drawings here. They wait in this tray, on all your devices, until you put them on a page.
+              Take photos of your drawings here. They are kept here on all your devices, even after you put them on a page.
             </p>
           ) : (
             <div className="gn-tray-grid">
-              {photos.map((photo) => (
+              {newFirst(photos).map((photo) => (
                 <div key={photo.id} className="gn-tray-item">
                   <PhotoThumb imageId={photo.imageId} />
+                  <PhotoTag photo={photo} />
                   <button className="gn-handle gn-tray-delete" aria-label="Delete photo" onClick={() => onDeletePhoto(photo)}>
                     <Icon name="close" size={18} stroke={3} />
                   </button>

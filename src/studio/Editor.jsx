@@ -8,8 +8,8 @@ import PhotoImport from './PhotoImport.jsx';
 import PhotoPicker from './PhotoPicker.jsx';
 import {
   BOX_STYLES, COLORS, FONTS, INNER_H, INNER_W, LAYOUTS, PAGE_H, PAGE_W, PAINT_COLORS, PEN_SIZES, SIZES,
-  applyActions, describePage, getPart, newCardPage, newComicPage, newId, newItem, pageLabel, panelRects,
-  roleOf, setLayout,
+  applyActions, describePage, drawingLook, drawingVersions, getPart, newCardPage, newComicPage, newId, newItem,
+  pageLabel, panelRects, roleOf, sameLook, setLayout, shownVersion,
 } from './model.js';
 import { imageBlob, putImage } from './store.js';
 
@@ -137,16 +137,24 @@ function TextStyle({ part, onStyle }) {
   );
 }
 
-function PhotoButtons({ image, onAdd, onColor, onLines, onRemove }) {
+function PhotoButtons({ image, onAdd, onColor, onLook, onRemove }) {
+  const look = image ? drawingLook(image) : null;
+  // A switch is only offered when that version of the drawing was made.
+  const can = (patch) => drawingVersions(image).some((v) => sameLook(v, { ...look, ...patch }));
   return (
     <>
       <button className="gn-btn gn-btn-yellow" onClick={onAdd}>
         <Icon name="camera" /> {image ? 'Change Photo' : 'Add Photo'}
       </button>
       {image && <button className="gn-btn" onClick={onColor}><Icon name="bucket" /> Color It</button>}
-      {image?.alt && (
-        <button className="gn-btn" onClick={onLines}>
-          <Icon name="pen" /> {image.vecId ? 'My Pencil Lines' : 'Neat Lines'}
+      {image && can({ neat: !look.neat }) && (
+        <button className="gn-btn gn-toggle" aria-pressed={look.neat} onClick={() => onLook({ neat: !look.neat })}>
+          <Icon name="pen" /> Neat Lines
+        </button>
+      )}
+      {image && can({ figure: !look.figure }) && (
+        <button className="gn-btn gn-toggle" aria-pressed={look.figure} onClick={() => onLook({ figure: !look.figure })}>
+          Just My Character
         </button>
       )}
       {image && <button className="gn-btn" onClick={onRemove}><Icon name="trash" /> Take It Off</button>}
@@ -288,7 +296,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
   const [pen, setPen] = useState({ size: PEN_SIZES[1], color: PAINT_COLORS[0].hex });
   const [focusItem, setFocusItem] = useState(null);
   const [photoFor, setPhotoFor] = useState(null); // which drawing the picked photo is for
-  const [picking, setPicking] = useState(false); // choosing among the New Photos
+  const [picking, setPicking] = useState(false); // choosing from My Photos
   const [importFile, setImportFile] = useState(null);
   const [importPhoto, setImportPhoto] = useState(null); // the New Photo being imported, if it is one
   const [coloring, setColoring] = useState(null); // which drawing is open in Color It
@@ -333,7 +341,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
     update((b) => { onPage(b).boxes.find((x) => x.id === boxId).boxStyle = boxStyle; });
 
   // Drawings: photo in, color, take off.
-  // Photos waiting in the New Photos tray are offered first; without any, go
+  // Photos in My Photos are offered first; without any, go
   // straight to this device's camera or files.
   const pickPhoto = (target) => {
     setPhotoFor(target);
@@ -351,20 +359,18 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
 
   const closeImport = () => { setImportFile(null); setImportPhoto(null); };
 
-  // A drawing keeps both kinds of lines: the ones shown (id, and vecId for neat
-  // lines) and the other kind in `alt`, so Ada can switch.
-  const photoDone = async ({ blob, vecBlob, alt, origBlob, w, h }) => {
-    const lines = (hasVector) => ({ id: newId(), ...(hasVector ? { vecId: newId() } : {}) });
-    const shown = lines(Boolean(vecBlob));
-    const other = lines(Boolean(alt.vecBlob));
-    const image = { ...shown, origId: newId(), w, h, alt: other };
+  // Every version made at import is kept (pencil or neat lines, just the
+  // character or everything), so Ada can switch on the page.
+  const photoDone = async ({ versions, look, origBlob }) => {
+    const stored = versions.map(({ blob, vecBlob, ...v }) => ({ ...v, id: newId(), ...(vecBlob ? { vecId: newId() } : {}) }));
+    const origId = newId();
     await Promise.all([
-      putImage(shown.id, blob), putImage(other.id, alt.blob), putImage(image.origId, origBlob),
-      vecBlob && putImage(shown.vecId, vecBlob), alt.vecBlob && putImage(other.vecId, alt.vecBlob),
+      putImage(origId, origBlob),
+      ...versions.flatMap((v, i) => [putImage(stored[i].id, v.blob), v.vecBlob && putImage(stored[i].vecId, v.vecBlob)]),
     ]);
+    const image = { ...shownVersion(stored.find((v) => sameLook(v, look))), origId, look, versions: stored };
     update((b) => { holderOf(onPage(b), photoFor).image = image; });
-    // A tray photo has done its job once it is on a page. The photo itself
-    // stays stored with the drawing.
+    // The photo stays in My Photos, marked as used.
     if (importPhoto) onPhotoUsed(importPhoto);
     closeImport();
   };
@@ -379,29 +385,39 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
     setColoring(null);
   };
 
-  // Swap neat lines and pencil lines. Colors are worked out again from the
-  // saved fills, since the color layer has to fit the line art.
-  const switchLines = async (target) => {
+  // Show another version of a drawing. Fills are spots on the drawing, so they
+  // are moved to where they sit in the new version's box (a fill on something
+  // that isn't there any more is dropped), and the colors are worked out again.
+  const changeLook = async (target, patch) => {
     const image = holderOf(page, target)?.image;
-    if (!image?.alt) return;
-    const { alt } = image;
-    let colorId = image.colorId ?? null;
-    if (image.fills?.length) {
+    if (!image) return;
+    const versions = drawingVersions(image);
+    const from = versions.find((v) => sameLook(v, drawingLook(image)));
+    const look = { ...drawingLook(image), ...patch };
+    const to = versions.find((v) => sameLook(v, look));
+    if (!from || !to) return;
+    const fills = (image.fills || []).map((f) => ({
+      ...f,
+      x: (from.box.x + f.x * from.box.w - to.box.x) / to.box.w,
+      y: (from.box.y + f.y * from.box.h - to.box.y) / to.box.h,
+    })).filter((f) => f.x >= 0 && f.x <= 1 && f.y >= 0 && f.y <= 1);
+    let colorId = null;
+    if (fills.length) {
       colorId = newId();
-      await putImage(colorId, await recolor(alt.id, image.fills, image.gap));
+      await putImage(colorId, await recolor(to.id, fills, image.gap));
     }
-    const shown = { id: image.id, ...(image.vecId ? { vecId: image.vecId } : {}) };
     update((b) => {
       const held = holderOf(onPage(b), target).image;
       delete held.vecId;
-      Object.assign(held, alt, { alt: shown, colorId });
+      delete held.alt;
+      Object.assign(held, shownVersion(to), { look, versions, fills, colorId });
     });
   };
 
   const photo = (target) => ({
     onAdd: () => pickPhoto(target),
     onColor: () => setColoring(target),
-    onLines: () => switchLines(target),
+    onLook: (patch) => changeLook(target, patch),
     onRemove: () => update((b) => { holderOf(onPage(b), target).image = null; }),
   });
 
