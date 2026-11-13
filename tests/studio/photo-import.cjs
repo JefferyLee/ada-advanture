@@ -1,5 +1,6 @@
 // Browser test: importing a photo taken at an angle (finding the paper, dragging corners,
-// Whole Photo, Find My Paper, Turn It).
+// Whole Photo, Find My Paper, Turn It), Read My Words (with a made-up answer), and switching
+// the drawing's lines on the page.
 // Run:  npm run build && npm run preview      (in another terminal)
 //       node tests/studio/photo-import.cjs
 // Needs Playwright:  npm i -D playwright && npx playwright install chromium
@@ -14,6 +15,18 @@ const log = (...a) => console.log(...a);
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errors.push('console: ' + m.text()); });
+  // Read My Words, answered the way the real reader answers: a long list with no heading of
+  // its own, a long paragraph, a box that is only a heading. Placed by where each box was drawn.
+  let readSent = null;
+  await page.route('**/api/studio/read', async (route) => {
+    readSent = `${route.request().headers()['content-type']}, ${route.request().postDataBuffer().length} bytes`;
+    await route.fulfill({ json: { name: 'Wormy', boxes: [
+      { title: 'Ability 1', text: 'Super dig!\nDig through one wall to save a friend and get a two star speed boost for that tunnel', x: 678, y: 358 },
+      { title: 'Stats', text: 'Finish all the deep tunnels on Mud Hill\n40% research on 3 Lost Worms\n2,300 Rain Drops\nLives ♥♥♥\nDigging ★★★\nSpeed ★★\nStamina ★★★\nStealth ★\nWiggling ★★★\nSinging ★★', x: 245, y: 365 },
+      { title: 'No Ability 2', text: '', x: 640, y: 725 },
+      { title: 'Personality', text: 'A happy personality, always friendly, brave, and helpful, but when it rains too hard he hides under a leaf and sings to himself until the sun comes out', x: 256, y: 693 },
+    ] } });
+  });
   await page.goto((process.env.STUDIO_URL || 'http://localhost:4173/studio/'));
   await page.getByRole('button', { name: 'New Episode' }).click();
 
@@ -78,7 +91,18 @@ const log = (...a) => console.log(...a);
   await page.waitForSelector('.gn-stage .gn-portrait img');
   const nat = await page.locator('.gn-stage .gn-portrait img').first().evaluate((e) => new Promise((r) => { const done = () => r([e.naturalWidth, e.naturalHeight]); e.complete ? done() : (e.onload = done); }));
   log('7 on the card: drawing', nat.join('x'), '(trimmed to the lines)');
-  await page.screenshot({ path: S + '/shot-corners-card.png' });
+  await page.getByRole('button', { name: 'Keep It' }).waitFor();
+  const card = () => page.locator('.gn-stage .gn-card').evaluate((c) => [
+    c.querySelector('[aria-label="Character name"]').textContent,
+    ...[...c.querySelectorAll('.gn-box')].map((b) => `${b.querySelector('.gn-box-title').textContent}: ${b.querySelector('[aria-label$=" text"]').textContent.split('\n')[0]}`),
+  ].join(' | '));
+  log('  Read My Words sent', readSent, '| helper says:', await page.locator('.gn-bubble-helper').textContent());
+  log('  card:', await card());
+  await page.screenshot({ path: S + '/shot-words-card.png' });
+  await page.getByRole('button', { name: 'Put It Back' }).click();
+  log('  Put It Back:', await card());
+  await page.getByRole('button', { name: 'Redo' }).click();
+  log('  Redo:', await card());
 
   // On the page: Neat Lines and Just My Character switch between the versions made at import.
   const shown = () => page.locator('.gn-stage .gn-portrait img').last().evaluate((e) => new Promise((r) => {

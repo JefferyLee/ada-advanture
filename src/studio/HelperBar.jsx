@@ -16,14 +16,10 @@ const PROBLEMS = {
   other: "Something went wrong and your helper couldn't answer. Try again.",
 };
 
-async function askHelper(body) {
+async function callHelper(url, body, type) {
   let res;
   try {
-    res = await fetch('/api/studio/helper', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    res = await fetch(url, { method: 'POST', headers: { 'content-type': type }, body });
   } catch {
     return { problem: 'other' };
   }
@@ -38,9 +34,17 @@ async function askHelper(body) {
   }
 }
 
+const askHelper = (body) => callHelper('/api/studio/helper', JSON.stringify(body), 'application/json');
+
+// "Read My Words": a JPEG of a straightened card photo in, its name and text boxes out.
+export const readMyWords = (photo) => callHelper('/api/studio/read', photo, 'image/jpeg');
+
 // The bar fixed to the bottom of the editor: type or talk to the helper, see
-// its answer, and keep or put back whatever it changed.
-export default function HelperBar({ chips, hint, getPage, selected, changePending, onApply, onKeep, onPutBack }) {
+// its answer, and keep or put back whatever it changed. A job started
+// elsewhere (reading the words on a photo) is shown the same way.
+export default function HelperBar({
+  chips, hint, getPage, selected, changePending, job, onJobDone, onApply, onKeep, onPutBack,
+}) {
   const [text, setText] = useState('');
   const [status, setStatus] = useState('idle'); // idle | thinking
   const [exchange, setExchange] = useState(null); // { said, reply }
@@ -51,6 +55,31 @@ export default function HelperBar({ chips, hint, getPage, selected, changePendin
 
   useEffect(() => () => recognition.current?.abort(), []);
 
+  const answered = (said, answer) => {
+    if (answer.problem) {
+      setExchange({ said, reply: PROBLEMS[answer.problem] });
+      return;
+    }
+    const reply = String(answer.reply || '').trim() || 'Done!';
+    history.current = [...history.current, { role: 'user', text: said }, { role: 'assistant', text: reply }].slice(-8);
+    onApply(answer.actions);
+    setExchange({ said, reply });
+  };
+
+  useEffect(() => {
+    if (!job) return undefined;
+    let alive = true;
+    setStatus('thinking');
+    setExchange({ said: job.said, reply: null });
+    job.answer.then((answer) => {
+      if (!alive) return;
+      setStatus('idle');
+      answered(job.said, answer);
+      onJobDone();
+    });
+    return () => { alive = false; };
+  }, [job]);
+
   const send = async (message) => {
     const said = message.trim();
     if (!said || status === 'thinking') return;
@@ -60,14 +89,7 @@ export default function HelperBar({ chips, hint, getPage, selected, changePendin
     setExchange({ said, reply: null });
     const answer = await askHelper({ message: said, page: getPage(), selected, history: history.current });
     setStatus('idle');
-    if (answer.problem) {
-      setExchange({ said, reply: PROBLEMS[answer.problem] });
-      return;
-    }
-    const reply = String(answer.reply || '').trim() || 'Done!';
-    history.current = [...history.current, { role: 'user', text: said }, { role: 'assistant', text: reply }].slice(-8);
-    onApply(answer.actions);
-    setExchange({ said, reply });
+    answered(said, answer);
   };
 
   const toggleMic = () => {

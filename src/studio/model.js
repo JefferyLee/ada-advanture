@@ -265,6 +265,38 @@ export function applyActions(page, actions) {
   return applied;
 }
 
+// About how many rows of body text a card column holds at size m, and how many
+// letters fit in a row. The page is a fixed size, so a column with more
+// writing than that gets smaller letters.
+const COLUMN_ROWS = 13;
+const ROW_LETTERS = 27;
+const rowsOf = (text) => text.split('\n').reduce((n, line) => n + Math.max(1, Math.ceil(line.length / ROW_LETTERS)), 0);
+
+// "Read My Words": the name and text boxes read off a photo of a card go into
+// the card's boxes by where they were drawn, left or right, then top to bottom.
+export function wordsOnCard(page, { name, boxes }) {
+  const left = boxes.filter((b) => b.x < 500).sort((a, b) => a.x - b.x);
+  const right = boxes.filter((b) => b.x >= 500).sort((a, b) => a.x - b.x);
+  // A side with more than two gives the ones nearest the middle to the other side.
+  while (left.length > 2 && right.length < 2) right.unshift(left.pop());
+  while (right.length > 2 && left.length < 2) left.push(right.shift());
+  const actions = name ? [{ type: 'set_text', target: 'name', text: name }] : [];
+  [left, right].forEach((side, s) => {
+    const kept = side.sort((a, b) => a.y - b.y).slice(0, 2);
+    const small = kept.reduce((n, b) => n + rowsOf(b.text), 0) > COLUMN_ROWS;
+    kept.forEach((b, k) => {
+      const { id } = page.boxes[s * 2 + k];
+      actions.push({ type: 'set_text', target: `${id}.title`, text: b.title }, { type: 'set_text', target: `${id}.body`, text: b.text });
+      if (small) actions.push({ type: 'set_style', target: `${id}.body`, size: 's' });
+    });
+  });
+  const leftOut = boxes.length - Math.min(2, left.length) - Math.min(2, right.length);
+  let reply = actions.length ? 'I read your words, checked the spelling, and put them on your card.'
+    : "I couldn't find any words on your paper.";
+  if (leftOut) reply += leftOut === 1 ? " One box didn't fit." : ` ${leftOut} boxes didn't fit.`;
+  return { reply, actions };
+}
+
 // Bright colors for painting a drawing and for the pen.
 export const PAINT_COLORS = [
   { hex: '#1B1B2F', label: 'Black' },

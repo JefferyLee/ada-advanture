@@ -15,6 +15,8 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   const errors = [];
   const device = async (name, viewport) => {
     const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+    // Read My Words would call the real model; these drawings have no words anyway.
+    await ctx.route('**/api/studio/read', (route) => route.fulfill({ json: { name: '', boxes: [] } }));
     const page = await ctx.newPage();
     page.on('pageerror', (e) => errors.push(`${name} pageerror: ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(m.text())) errors.push(`${name} console: ${m.text()}`); });

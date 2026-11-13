@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { readMyWords } from './HelperBar.jsx';
 import Icon from './Icon.jsx';
 import { cleanLineArt } from './cleanup.js';
 import { FULL_FRAME, detectPage, straightSize, straighten, toSmallGray } from './perspective.js';
@@ -32,6 +33,14 @@ function makeSource(bitmap, quarterTurns) {
 }
 
 const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+
+function sheetPhoto(pixels) {
+  const canvas = document.createElement('canvas');
+  canvas.width = pixels.width;
+  canvas.height = pixels.height;
+  canvas.getContext('2d').putImageData(new ImageData(pixels.data, pixels.width, pixels.height), 0, 0);
+  return toBlob(canvas, 'image/jpeg', 0.85);
+}
 
 // The part of the cleaned page to keep: the lines plus a little blank margin.
 function cropBox(result) {
@@ -97,6 +106,7 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
   // A character card is usually one figure; a comic panel needs everything kept.
   const [justFigure, setJustFigure] = useState(kind === 'card');
   const [neat, setNeat] = useState(true);
+  const [readWords, setReadWords] = useState(kind === 'card');
   const [problem, setProblem] = useState(null); // 'empty' | 'corners'
   const [busy, setBusy] = useState(false);
   const photoRef = useRef(null);
@@ -190,6 +200,8 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
     const result = cleaned.current;
     if (!result?.bbox) return;
     setBusy(true);
+    // Reading takes a few seconds, so it starts now and finishes on the page.
+    const words = kind === 'card' && readWords ? sheetPhoto(flat.current.pixels).then(readMyWords) : null;
     // Every version is made now, so Ada can switch on the page later: pencil or
     // neat lines, each with everything or just the character. When nothing is
     // around the character those two are the same, and only one is kept.
@@ -217,7 +229,7 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
       );
     }
     const origBlob = await toBlob(source.canvas, 'image/jpeg', 0.85);
-    await onDone({ versions, look: { neat, figure: both && justFigure }, origBlob });
+    await onDone({ versions, look: { neat, figure: both && justFigure }, origBlob, words });
   };
 
   const aspect = source ? source.w / source.h : 4 / 3;
@@ -283,6 +295,10 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
                 <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={neat}
                   onClick={() => setNeat((v) => !v)}><Icon name="pen" /> Neat Lines</button>
               </div>
+              {kind === 'card' && (
+                <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={readWords}
+                  onClick={() => setReadWords((v) => !v)}>Read My Words</button>
+              )}
               <div className="gn-field">
                 <label className="gn-label-strong" htmlFor="gn-dark">Line darkness</label>
                 <input id="gn-dark" type="range" min="0" max="100" value={darkness}

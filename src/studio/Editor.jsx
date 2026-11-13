@@ -9,7 +9,7 @@ import PhotoPicker from './PhotoPicker.jsx';
 import {
   BOX_STYLES, COLORS, FONTS, INNER_H, INNER_W, LAYOUTS, PAGE_H, PAGE_W, PAINT_COLORS, PEN_SIZES, SIZES,
   applyActions, describePage, drawingLook, drawingVersions, getPart, newCardPage, newComicPage, newId, newItem,
-  pageLabel, panelRects, roleOf, sameLook, setLayout, shownVersion,
+  pageLabel, panelRects, roleOf, sameLook, setLayout, shownVersion, wordsOnCard,
 } from './model.js';
 import { imageBlob, putImage } from './store.js';
 
@@ -301,6 +301,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
   const [importPhoto, setImportPhoto] = useState(null); // the New Photo being imported, if it is one
   const [coloring, setColoring] = useState(null); // which drawing is open in Color It
   const [helperChange, setHelperChange] = useState(null); // the book as the helper left it
+  const [reading, setReading] = useState(null); // words being read off a card photo: { pageId, said, answer }
   const stageRef = useRef(null);
   const fileRef = useRef(null);
   const scale = useFitScale(stageRef);
@@ -361,7 +362,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
 
   // Every version made at import is kept (pencil or neat lines, just the
   // character or everything), so Ada can switch on the page.
-  const photoDone = async ({ versions, look, origBlob }) => {
+  const photoDone = async ({ versions, look, origBlob, words }) => {
     const stored = versions.map(({ blob, vecBlob, ...v }) => ({ ...v, id: newId(), ...(vecBlob ? { vecId: newId() } : {}) }));
     const origId = newId();
     await Promise.all([
@@ -372,6 +373,11 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
     update((b) => { holderOf(onPage(b), photoFor).image = image; });
     // The photo stays in My Photos, marked as used.
     if (importPhoto) onPhotoUsed(importPhoto);
+    // Her words go on the card through the helper bar, so she can keep them or put them back.
+    if (words) {
+      const card = page;
+      setReading({ pageId: card.id, said: 'Read my words', answer: words.then((w) => (w.problem ? w : wordsOnCard(card, w))) });
+    }
     closeImport();
   };
 
@@ -534,6 +540,8 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
         getPage={() => describePage(page)}
         selected={live && !live.startsWith('panel:') ? live : null}
         changePending={changePending}
+        job={reading?.pageId === page.id ? reading : null}
+        onJobDone={() => setReading(null)}
         onApply={applyHelper}
         onKeep={() => setHelperChange(null)}
         onPutBack={() => { undo(); setHelperChange(null); }}
