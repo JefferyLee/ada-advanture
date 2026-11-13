@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import CardPage from './CardPage.jsx';
-import ColorStudio from './ColorStudio.jsx';
+import ColorStudio, { recolor } from './ColorStudio.jsx';
 import ComicPage from './ComicPage.jsx';
 import HelperBar from './HelperBar.jsx';
 import Icon from './Icon.jsx';
@@ -137,13 +137,18 @@ function TextStyle({ part, onStyle }) {
   );
 }
 
-function PhotoButtons({ image, onAdd, onColor, onRemove }) {
+function PhotoButtons({ image, onAdd, onColor, onLines, onRemove }) {
   return (
     <>
       <button className="gn-btn gn-btn-yellow" onClick={onAdd}>
         <Icon name="camera" /> {image ? 'Change Photo' : 'Add Photo'}
       </button>
       {image && <button className="gn-btn" onClick={onColor}><Icon name="bucket" /> Color It</button>}
+      {image?.alt && (
+        <button className="gn-btn" onClick={onLines}>
+          <Icon name="pen" /> {image.vecId ? 'My Pencil Lines' : 'Neat Lines'}
+        </button>
+      )}
       {image && <button className="gn-btn" onClick={onRemove}><Icon name="trash" /> Take It Off</button>}
     </>
   );
@@ -346,9 +351,17 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
 
   const closeImport = () => { setImportFile(null); setImportPhoto(null); };
 
-  const photoDone = async ({ blob, origBlob, w, h }) => {
-    const image = { id: newId(), origId: newId(), w, h };
-    await Promise.all([putImage(image.id, blob), putImage(image.origId, origBlob)]);
+  // A drawing keeps both kinds of lines: the ones shown (id, and vecId for neat
+  // lines) and the other kind in `alt`, so Ada can switch.
+  const photoDone = async ({ blob, vecBlob, alt, origBlob, w, h }) => {
+    const lines = (hasVector) => ({ id: newId(), ...(hasVector ? { vecId: newId() } : {}) });
+    const shown = lines(Boolean(vecBlob));
+    const other = lines(Boolean(alt.vecBlob));
+    const image = { ...shown, origId: newId(), w, h, alt: other };
+    await Promise.all([
+      putImage(shown.id, blob), putImage(other.id, alt.blob), putImage(image.origId, origBlob),
+      vecBlob && putImage(shown.vecId, vecBlob), alt.vecBlob && putImage(other.vecId, alt.vecBlob),
+    ]);
     update((b) => { holderOf(onPage(b), photoFor).image = image; });
     // A tray photo has done its job once it is on a page. The photo itself
     // stays stored with the drawing.
@@ -366,9 +379,29 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
     setColoring(null);
   };
 
+  // Swap neat lines and pencil lines. Colors are worked out again from the
+  // saved fills, since the color layer has to fit the line art.
+  const switchLines = async (target) => {
+    const image = holderOf(page, target)?.image;
+    if (!image?.alt) return;
+    const { alt } = image;
+    let colorId = image.colorId ?? null;
+    if (image.fills?.length) {
+      colorId = newId();
+      await putImage(colorId, await recolor(alt.id, image.fills, image.gap));
+    }
+    const shown = { id: image.id, ...(image.vecId ? { vecId: image.vecId } : {}) };
+    update((b) => {
+      const held = holderOf(onPage(b), target).image;
+      delete held.vecId;
+      Object.assign(held, alt, { alt: shown, colorId });
+    });
+  };
+
   const photo = (target) => ({
     onAdd: () => pickPhoto(target),
     onColor: () => setColoring(target),
+    onLines: () => switchLines(target),
     onRemove: () => update((b) => { holderOf(onPage(b), target).image = null; }),
   });
 
@@ -496,7 +529,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
         <PhotoPicker photos={photos} onPick={useTrayPhoto} onCancel={() => setPicking(false)}
           onDevice={() => { setPicking(false); fileRef.current?.click(); }} />
       )}
-      {importFile && <PhotoImport file={importFile} onCancel={closeImport} onDone={photoDone} />}
+      {importFile && <PhotoImport file={importFile} kind={photoFor === 'card' ? 'card' : 'comic'} onCancel={closeImport} onDone={photoDone} />}
       {coloringImage && <ColorStudio image={coloringImage} onCancel={() => setColoring(null)} onDone={colorDone} />}
 
       {/* What the printer gets: just the page, filling an A4 sheet. */}

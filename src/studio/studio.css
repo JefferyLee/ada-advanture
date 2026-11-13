@@ -284,6 +284,7 @@ html[data-theme='crafty'] .gn-wordmark { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6)
   font-weight: 700;
 }
 .gn-bar-btn[aria-pressed='true'] { background: var(--pop); color: var(--pop-fg) !important; }
+.gn-toggle[aria-pressed='true'] { border: var(--on-border); background: var(--on); box-shadow: var(--on-shadow); }
 .gn-bar-btn-yellow { border: var(--btn-border); background: var(--pop); color: var(--pop-fg) !important; }
 .gn-look { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .gn-episode { display: flex; align-items: center; gap: 8px; min-width: 240px; font-size: 18px; font-weight: 500; }

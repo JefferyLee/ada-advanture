@@ -85,6 +85,8 @@ const box = (id, title, color) => ({
 });
 
 // A drawing is { id, origId, w, h } plus, once colored, { colorId, fills, gap }.
+// id is the line art shown (PNG); with neat lines vecId is the same lines as SVG.
+// alt holds the other kind of lines ({ id, vecId? }) so Ada can switch back.
 
 export function newCardPage() {
   return {

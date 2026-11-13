@@ -79,6 +79,39 @@ const log = (...a) => console.log(...a);
   const nat = await page.locator('.gn-stage .gn-portrait img').first().evaluate((e) => new Promise((r) => { const done = () => r([e.naturalWidth, e.naturalHeight]); e.complete ? done() : (e.onload = done); }));
   log('7 on the card: drawing', nat.join('x'), '(trimmed to the lines)');
   await page.screenshot({ path: S + '/shot-corners-card.png' });
+
+  // Neat lines are shown as SVG; the switch swaps to the pencil lines (same size) and back.
+  const shown = () => page.locator('.gn-stage .gn-portrait img').last().evaluate((e) => new Promise((r) => {
+    const done = () => r({ w: e.naturalWidth, h: e.naturalHeight, src: e.src });
+    e.complete && e.naturalWidth ? done() : (e.onload = done);
+  }));
+  const neatImg = await shown();
+  await page.getByRole('button', { name: 'My Pencil Lines' }).click();
+  await page.getByRole('button', { name: 'Neat Lines' }).waitFor();
+  await page.waitForTimeout(300);
+  const pencilImg = await shown();
+  await page.getByRole('button', { name: 'Neat Lines' }).click();
+  await page.getByRole('button', { name: 'My Pencil Lines' }).waitFor();
+  await page.waitForTimeout(300);
+  const backImg = await shown();
+  log('8 lines switch: pencil differs', pencilImg.src !== neatImg.src, '| same size', pencilImg.w === neatImg.w && pencilImg.h === neatImg.h,
+    '| back to neat', backImg.src === neatImg.src);
+
+  // Colored, then switched: the color layer is worked out again for the other lines.
+  await page.getByRole('button', { name: 'Color It' }).click();
+  const art = page.locator('.gn-color canvas').first();
+  await art.waitFor();
+  await page.waitForTimeout(500);
+  const box = await art.boundingBox();
+  await art.click({ position: { x: box.width * 0.5, y: box.height * 0.08 } }); // just under the top edge of the drawing
+  await page.getByRole('button', { name: /Done|Looks Good/ }).click();
+  await page.waitForSelector('.gn-color', { state: 'detached' });
+  const layers = () => page.locator('.gn-stage .gn-portrait img').count();
+  const before = await layers();
+  await page.getByRole('button', { name: 'My Pencil Lines' }).click();
+  await page.getByRole('button', { name: 'Neat Lines' }).waitFor();
+  await page.waitForTimeout(500);
+  log('9 colored then switched: layers', before, '->', await layers());
   log('errors:', errors.length ? errors : 'none');
   await browser.close();
 })().catch((e) => { console.error('FAILED', e); process.exit(1); });

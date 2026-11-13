@@ -2,13 +2,45 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import { PAINT_COLORS } from './model.js';
 import { buildRegions, paintFills, regionAt } from './regions.js';
-import { getImage } from './store.js';
+import { imageBlob } from './store.js';
 
 // How much to thicken lines when finding areas, for small / medium / big gaps.
 const GAPS = [{ label: 'Small', gap: 3 }, { label: 'Medium', gap: 6 }, { label: 'Big', gap: 12 }];
 const DEFAULT_GAP = 6;
 
 const toBlob = (canvas) => new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+
+// The line art of a stored drawing, with its alpha channel ready to read.
+async function loadLineArt(id) {
+  const blob = await imageBlob(id);
+  if (!blob) throw new Error('line art not available');
+  const bitmap = await createImageBitmap(blob);
+  const c = document.createElement('canvas');
+  c.width = bitmap.width;
+  c.height = bitmap.height;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+  const { data } = ctx.getImageData(0, 0, c.width, c.height);
+  const alpha = new Uint8Array(c.width * c.height);
+  for (let i = 0; i < alpha.length; i++) alpha[i] = data[i * 4 + 3];
+  return { bitmap, alpha, w: c.width, h: c.height };
+}
+
+function paintLayer(labels, w, h, fills) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  c.getContext('2d').putImageData(new ImageData(paintFills(labels, w, h, fills), w, h), 0, 0);
+  return c;
+}
+
+// The color layer for a drawing's saved fills, worked out again on other line
+// art of the same drawing (used when Ada switches between neat and pencil lines).
+export async function recolor(inkId, fills, gap = DEFAULT_GAP) {
+  const art = await loadLineArt(inkId);
+  const { labels } = buildRegions(art.alpha, art.w, art.h, gap);
+  return toBlob(paintLayer(labels, art.w, art.h, fills));
+}
 
 // Tap-to-fill coloring for one drawing. The line art never changes; colors go
 // on a separate layer underneath it.
@@ -25,31 +57,13 @@ export default function ColorStudio({ image, onCancel, onDone }) {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
-      const blob = await getImage(image.id);
-      const bitmap = await createImageBitmap(blob);
-      const c = document.createElement('canvas');
-      c.width = bitmap.width;
-      c.height = bitmap.height;
-      const ctx = c.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(bitmap, 0, 0);
-      const { data } = ctx.getImageData(0, 0, c.width, c.height);
-      const alpha = new Uint8Array(c.width * c.height);
-      for (let i = 0; i < alpha.length; i++) alpha[i] = data[i * 4 + 3];
-      if (alive) setArt({ bitmap, alpha, w: c.width, h: c.height });
-    })().catch(() => { if (alive) setFailed(true); });
+    loadLineArt(image.id).then((a) => { if (alive) setArt(a); }, () => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [image.id]);
 
   const regions = useMemo(() => (art ? buildRegions(art.alpha, art.w, art.h, gap) : null), [art, gap]);
 
-  const colorLayer = (list) => {
-    const c = document.createElement('canvas');
-    c.width = art.w;
-    c.height = art.h;
-    c.getContext('2d').putImageData(new ImageData(paintFills(regions.labels, art.w, art.h, list), art.w, art.h), 0, 0);
-    return c;
-  };
+  const colorLayer = (list) => paintLayer(regions.labels, art.w, art.h, list);
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -11,7 +11,7 @@
     "build": "node node_modules/vite/bin/vite.js build",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "studio:local": "npm run build && wrangler pages dev dist --d1 STUDIO_DB --r2 STUDIO_BUCKET",
-    "test:studio": "node tests/studio/perspective.mjs",
+    "test:studio": "node tests/studio/perspective.mjs && node tests/studio/vectorize.mjs",
     "deploy:preview": "npm run build && wrangler pages deploy dist --branch=preview",
     "deploy": "npm run build && wrangler pages deploy dist --branch=main"
   },

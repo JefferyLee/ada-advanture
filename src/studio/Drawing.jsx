@@ -13,9 +13,10 @@ export function useStoredImage(id) {
 }
 
 // One of Ada's drawings: the line art, with its color layer underneath when
-// she has colored it. Both pictures are the same size, so they line up.
+// she has colored it. Both pictures are the same size, so they line up. Neat
+// lines are shown from their SVG, so they stay sharp at any size.
 export default function Drawing({ image }) {
-  const ink = useStoredImage(image.id);
+  const ink = useStoredImage(image.vecId || image.id);
   const color = useStoredImage(image.colorId);
   return (
     <div className="gn-drawing">

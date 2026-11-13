@@ -7,7 +7,9 @@
 
 import { json, notConfigured, storage, validId } from '../../../../server/studio/storage.js';
 
-const TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+// SVG is the neat-lines version of a drawing. It can carry script, so every
+// picture is served with a policy that lets nothing run if it is opened directly.
+const TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 const MAX_IMAGE = 12 * 1024 * 1024;
 const keyOf = (id) => `images/${id}`;
 
@@ -38,6 +40,8 @@ export async function onRequestGet({ env, params }) {
     headers: {
       'content-type': object.httpMetadata?.contentType || 'application/octet-stream',
       'cache-control': 'private, max-age=31536000, immutable',
+      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      'x-content-type-options': 'nosniff',
       etag: object.httpEtag,
     },
   });
