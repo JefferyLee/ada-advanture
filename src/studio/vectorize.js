@@ -318,30 +318,69 @@ function bridgeGaps(chains, maxGap, reach) {
     const n = Math.hypot(dx, dy) || 1;
     return { e, dx: dx / n, dy: dy / n };
   };
-  for (;;) {
-    let best = null;
-    for (let a = 0; a < chains.length; a++) {
-      for (const sa of [true, false]) {
-        const A = out(chains[a], sa);
-        for (let b = a + 1; b < chains.length; b++) {
-          for (const sb of [true, false]) {
-            const B = out(chains[b], sb);
-            const vx = B.e[0] - A.e[0];
-            const vy = B.e[1] - A.e[1];
-            const dist = Math.hypot(vx, vy);
-            if (dist > maxGap || dist === 0) continue;
-            if ((A.dx * vx + A.dy * vy) / dist < 0.6 || -(B.dx * vx + B.dy * vy) / dist < 0.6) continue;
-            if (!best || dist < best.dist) best = { a, b, sa, sb, dist };
-          }
+  // End 2c is the start of chain c, 2c + 1 its end. Ends are put in a grid of
+  // maxGap squares, so each is only compared with the ends near it.
+  const ends = chains.flatMap((c) => [out(c, true), out(c, false)]);
+  const cellOf = (e) => `${Math.floor(e[0] / maxGap)},${Math.floor(e[1] / maxGap)}`;
+  const grid = new Map();
+  ends.forEach((E, k) => {
+    const key = cellOf(E.e);
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(k);
+  });
+  const pairs = [];
+  ends.forEach((A, a) => {
+    const cx = Math.floor(A.e[0] / maxGap);
+    const cy = Math.floor(A.e[1] / maxGap);
+    for (let gx = cx - 1; gx <= cx + 1; gx++) {
+      for (let gy = cy - 1; gy <= cy + 1; gy++) {
+        for (const b of grid.get(`${gx},${gy}`) || []) {
+          if (b <= a || b >> 1 === a >> 1) continue;
+          const B = ends[b];
+          const vx = B.e[0] - A.e[0];
+          const vy = B.e[1] - A.e[1];
+          const dist = Math.hypot(vx, vy);
+          if (dist > maxGap || dist === 0) continue;
+          if ((A.dx * vx + A.dy * vy) / dist < 0.6 || -(B.dx * vx + B.dy * vy) / dist < 0.6) continue;
+          pairs.push({ a, b, dist });
         }
       }
     }
-    if (!best) return chains;
-    const A = best.sa ? chains[best.a].slice().reverse() : chains[best.a];
-    const B = best.sb ? chains[best.b] : chains[best.b].slice().reverse();
-    chains[best.a] = [...A, ...B];
-    chains.splice(best.b, 1);
+  });
+
+  // Closest first, while both ends are still free and on different strokes.
+  pairs.sort((x, y) => x.dist - y.dist);
+  const parent = chains.map((_, i) => i);
+  const find = (i) => {
+    while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+    return i;
+  };
+  const link = new Map();
+  for (const { a, b } of pairs) {
+    if (link.has(a) || link.has(b)) continue;
+    const ra = find(a >> 1);
+    const rb = find(b >> 1);
+    if (ra === rb) continue;
+    parent[ra] = rb;
+    link.set(a, b);
+    link.set(b, a);
   }
+
+  // Walk each joined stroke from one of its free ends.
+  const done = new Uint8Array(chains.length);
+  const joined = [];
+  for (let k = 0; k < ends.length; k++) {
+    if (link.has(k) || done[k >> 1]) continue;
+    const pts = [];
+    for (let e = k; e !== undefined; e = link.get(e ^ 1)) {
+      done[e >> 1] = 1;
+      const c = chains[e >> 1];
+      if (e & 1) for (let i = c.length - 1; i >= 0; i--) pts.push(c[i]);
+      else for (const p of c) pts.push(p);
+    }
+    joined.push(pts);
+  }
+  return joined;
 }
 
 function smooth(pts, r) {
