@@ -40,6 +40,7 @@ export const COLORS = [
   { id: 'green', hex: '#1E7A40', label: 'Green' },
   { id: 'purple', hex: '#6A3BC4', label: 'Purple' },
   { id: 'red', hex: '#C22B2B', label: 'Red' },
+  { id: 'yellow', hex: '#FFD23F', label: 'Yellow' },
 ];
 
 export const BOX_STYLES = ['none', 'box', 'banner'];
@@ -194,7 +195,11 @@ export function roleOf(page, target) {
 export function partStyle(p, role) {
   const font = FONTS.find((f) => f.id === p.font) || FONTS[0];
   const color = COLORS.find((c) => c.id === p.color) || COLORS[0];
-  return { fontFamily: font.css, fontSize: SIZE_PX[role][p.size] || SIZE_PX[role].m, color: color.hex };
+  const fontSize = SIZE_PX[role][p.size] || SIZE_PX[role].m;
+  const style = { fontFamily: font.css, fontSize, color: color.hex };
+  // Yellow letters get a dark edge, as in comics, or they don't show on white paper.
+  if (color.id === 'yellow') Object.assign(style, { WebkitTextStroke: `${Math.max(2, Math.round(fontSize / 15))}px ${COLORS[0].hex}`, paintOrder: 'stroke fill' });
+  return style;
 }
 
 export function pageLabel(page) {

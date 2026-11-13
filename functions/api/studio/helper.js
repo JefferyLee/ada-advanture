@@ -24,7 +24,7 @@ const MAX_HISTORY = 8;
 
 const FONTS = ['hand', 'bangers', 'comic', 'round'];
 const SIZES = ['s', 'm', 'l', 'xl'];
-const COLORS = ['black', 'blue', 'orange', 'green', 'purple', 'red'];
+const COLORS = ['black', 'blue', 'orange', 'green', 'purple', 'red', 'yellow'];
 const BOX_STYLES = ['none', 'box', 'banner'];
 const BUBBLE_KINDS = ['speech', 'thought', 'caption', 'sound'];
 const PAGE_KINDS = ['character_card', 'comic_page'];
