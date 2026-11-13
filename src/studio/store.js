@@ -3,7 +3,7 @@
 //
 // Stores:
 //   books   one record per book (plain JSON)
-//   photos  My Photos: { id, imageId, createdAt } plus usedAt once put on a page
+//   photos  My Photos: { id, imageId, createdAt, print } plus usedAt once put on a page
 //   images  picture files (Blobs) by id, kept apart so saving a page after
 //           every keystroke never rewrites picture data
 //   meta    sync bookkeeping:

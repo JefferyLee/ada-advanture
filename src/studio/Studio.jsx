@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Bookshelf from './Bookshelf.jsx';
 import Editor from './Editor.jsx';
 import { newBook, newId } from './model.js';
-import { shrinkPhoto } from './photo.js';
+import { samePhoto, shrinkPhoto } from './photo.js';
 import { listBooks, listPhotos, putImage, removeBook, removePhoto, saveBook, savePhoto } from './store.js';
 import { createSync } from './sync.js';
 
@@ -132,20 +132,31 @@ export default function Studio() {
     send();
   };
 
-  // Photos for My Photos: kept here and sent to the other devices.
+  // Photos for My Photos: kept here and sent to the other devices. A photo
+  // that is already there is not added again.
   const addPhotos = async (files) => {
     let failed = 0;
+    let again = 0;
+    const prints = photos.map((p) => p.print);
     for (const file of files) {
       try {
-        const blob = await shrinkPhoto(file);
-        const photo = { id: newId(), imageId: newId(), createdAt: Date.now() };
+        const { blob, print } = await shrinkPhoto(file);
+        if (prints.some((p) => samePhoto(p, print))) { again++; continue; }
+        prints.push(print);
+        const photo = { id: newId(), imageId: newId(), createdAt: Date.now(), print };
         await putImage(photo.imageId, blob);
         await savePhoto(photo);
       } catch {
         failed++;
       }
     }
-    if (failed) setNotice(failed === 1 ? "I couldn't open one of those pictures." : `I couldn't open ${failed} of those pictures.`);
+    const notes = [];
+    if (again) {
+      notes.push(files.length === 1 ? 'You already have that photo in My Photos.'
+        : again === 1 ? 'One of those photos is already in My Photos.' : `${again} of those photos are already in My Photos.`);
+    }
+    if (failed) notes.push(failed === 1 ? "I couldn't open one of those pictures." : `I couldn't open ${failed} of those pictures.`);
+    if (notes.length) setNotice(notes.join(' '));
     setPhotos(await listPhotos());
     send();
   };

@@ -1,5 +1,5 @@
 // Browser test: two devices and a third fresh one against the sync server (books, pictures,
-// an offline conflict that keeps both, My Photos, deleting).
+// an offline conflict that keeps both, My Photos and adding one twice, deleting).
 // Needs an EMPTY local server each run, with the access check off:
 //       echo STUDIO_DEV_NO_AUTH=1 >> .dev.vars      (once)
 //       rm -rf .wrangler/state && npm run studio:local      (in another terminal)
@@ -37,14 +37,20 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   const mac = await device('iMac', { width: 1440, height: 960 });
   const pad = await device('iPad', { width: 1180, height: 820 });
 
-  const photoUrl = await mac.page.evaluate(() => {
-    const c = document.createElement('canvas'); c.width = 1800; c.height = 1300; const x = c.getContext('2d');
-    x.fillStyle = '#5f4630'; x.fillRect(0, 0, c.width, c.height);
-    x.setTransform(1, 0.05, -0.06, 1, 260, 120); x.fillStyle = '#f1ecde'; x.fillRect(0, 0, 1300, 950);
-    x.strokeStyle = '#34343f'; x.lineWidth = 9; x.beginPath(); x.arc(650, 380, 200, 0, 7); x.stroke(); x.beginPath(); x.rect(420, 620, 460, 220); x.stroke();
-    return c.toDataURL('image/jpeg', 0.9);
+  // The same desk and sheet with two different drawings, and the first one saved again at a lower quality.
+  const photoUrls = await mac.page.evaluate(() => {
+    const shot = (other, quality) => {
+      const c = document.createElement('canvas'); c.width = 1800; c.height = 1300; const x = c.getContext('2d');
+      x.fillStyle = '#5f4630'; x.fillRect(0, 0, c.width, c.height);
+      x.setTransform(1, 0.05, -0.06, 1, 260, 120); x.fillStyle = '#f1ecde'; x.fillRect(0, 0, 1300, 950);
+      x.strokeStyle = '#34343f'; x.lineWidth = 9;
+      if (other) { x.beginPath(); x.moveTo(650, 150); x.lineTo(900, 800); x.lineTo(400, 800); x.closePath(); x.stroke(); }
+      else { x.beginPath(); x.arc(650, 380, 200, 0, 7); x.stroke(); x.beginPath(); x.rect(420, 620, 460, 220); x.stroke(); }
+      return c.toDataURL('image/jpeg', quality);
+    };
+    return [shot(false, 0.9), shot(true, 0.9), shot(false, 0.6)];
   });
-  const photo = (name) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.from(photoUrl.split(',')[1], 'base64') });
+  const photo = (name, k = 0) => ({ name, mimeType: 'image/jpeg', buffer: Buffer.from(photoUrls[k].split(',')[1], 'base64') });
 
   // 1. Make a book on the iMac
   await mac.page.goto(URL);
@@ -111,12 +117,19 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
 
   // 5. My Photos: taken on the iPad, used on the iMac, kept on both and marked used
   const [ch2] = await Promise.all([pad.page.waitForEvent('filechooser'), pad.page.getByRole('button', { name: 'Add Photos' }).click()]);
-  await ch2.setFiles([photo('a.jpg'), photo('b.jpg')]);
+  await ch2.setFiles([photo('a.jpg'), photo('b.jpg', 1)]);
   await pad.page.waitForFunction(() => document.querySelectorAll('.gn-tray-item').length === 2);
+  // The first one again, as it was and saved again: neither is added
+  const [ch3] = await Promise.all([pad.page.waitForEvent('filechooser'), pad.page.getByRole('button', { name: 'Add Photos' }).click()]);
+  await ch3.setFiles([photo('a-again.jpg', 2), photo('a.jpg')]);
+  await pad.page.locator('.gn-toast').waitFor();
+  log('5 iPad added the first photo again: message', JSON.stringify(await pad.page.locator('.gn-toast span').textContent()),
+    '| photos', await pad.page.locator('.gn-tray-item').count());
+  await pad.page.locator('.gn-toast').getByRole('button', { name: 'OK' }).click();
   await pad.synced();
   await mac.poke();
   await mac.page.waitForFunction(() => document.querySelectorAll('.gn-tray-item img').length === 2, null, { timeout: 15000 });
-  log('5 iPad added 2 photos; iMac tray shows:', await mac.page.locator('.gn-tray-item img').count());
+  log('  iPad added 2 photos; iMac tray shows:', await mac.page.locator('.gn-tray-item img').count());
   await mac.page.screenshot({ path: S + '/shot-tray.png' });
   await mac.page.locator('.gn-cover-title', { hasText: /Fog$/ }).click();
   await mac.page.getByRole('button', { name: 'New Card' }).click();
