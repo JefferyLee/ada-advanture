@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
+import HelperBuddy from './HelperBuddy.jsx';
 
 // The helper's display name. A placeholder until Ada picks one; change it here
 // and in the HELPER_NAME setting of the server function.
@@ -111,7 +112,7 @@ export default function HelperBar({ chips, hint, getPage, selected, changePendin
       )}
 
       <form className="gn-helper-row" onSubmit={(e) => { e.preventDefault(); send(text); }}>
-        <label className="gn-helper-name" htmlFor="gn-ask">{HELPER_NAME}</label>
+        <label className="gn-helper-name" htmlFor="gn-ask"><HelperBuddy size={52} /> {HELPER_NAME}</label>
         <button type="button" className={`gn-mic${listening ? ' is-listening' : ''}`} aria-pressed={listening}
           aria-label={listening ? 'Stop listening' : 'Talk instead of typing'} onClick={toggleMic}>
           <Icon name="mic" size={28} />

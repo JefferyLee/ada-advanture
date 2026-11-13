@@ -324,6 +324,9 @@ html[data-theme='crafty'] .gn-wordmark { text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6)
 .gn-note-warn { color: var(--warn); font-weight: 700; }
 
 /* ---- Bookshelf ---- */
+.gn-greet { display: flex; align-items: flex-end; gap: 12px; }
+.gn-buddy { flex: none; color: var(--fg); }
+.gn-greet-bubble { margin: 0 0 40px; max-width: 520px; font-size: 22px; }
 .gn-shelf {
   flex: 1; overflow: auto; width: 100%; max-width: 1280px; margin: 0 auto; padding: 28px;
   display: flex; flex-direction: column; gap: 20px;
@@ -541,6 +544,7 @@ html[data-theme='crafty'] .gn-stage .gn-page { border-color: rgba(27, 27, 47, 0.
 }
 .gn-chips, .gn-helper-talk, .gn-helper-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .gn-helper-row { gap: 12px; }
+.gn-helper-name { display: flex; align-items: center; gap: 6px; }
 .gn-chip {
   height: 44px; padding: 0 16px; border: var(--ctl-border); border-radius: 22px; background: var(--chip);
   color: var(--ctl-fg) !important; box-shadow: var(--ctl-shadow); font-weight: 700; font-size: 16px;

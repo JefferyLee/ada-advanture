@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { useStoredImage } from './Drawing.jsx';
 import Icon from './Icon.jsx';
+import HelperBuddy from './HelperBuddy.jsx';
+import { HELPER_NAME } from './HelperBar.jsx';
 import { LOOKS, getLook, setLook } from './look.js';
 
 const COVER_COLORS = ['purple', 'orange', 'yellow'];
@@ -34,6 +36,12 @@ export default function Bookshelf({
         </span>
       </header>
       <main className="gn-shelf">
+        <div className="gn-greet">
+          <HelperBuddy size={112} />
+          <p className="gn-bubble gn-bubble-helper gn-greet-bubble">
+            Hi Ada! I'm your {HELPER_NAME}. Open a book, and ask me for help at the bottom of the page.
+          </p>
+        </div>
         <h1 className="gn-h1">My Books</h1>
         <div className="gn-covers">
           <button className="gn-cover gn-cover-new" onClick={onCreate}>
