@@ -1,6 +1,6 @@
 // Checks "Just my character" and "Neat lines" on made-up line art: a round head
-// with eyes inside it and hearts around it, a line with a small gap, two lines
-// crossing. No browser needed.
+// with eyes inside it and hearts around it, a character beside a bigger box of
+// writing, a line with a small gap, two lines crossing. No browser needed.
 // Run:  node tests/studio/vectorize.mjs
 import { keepFigure, neatSvg, traceNeat } from '../../src/studio/vectorize.js';
 
@@ -55,6 +55,24 @@ const ends = (d) => {
   check(inkIn(kept, s.w, 140, 220, 260, 260) > 50, 'eyes inside the head are kept');
   check(inkIn(kept, s.w, 0, 0, 80, 80) === 0 && inkIn(kept, s.w, 330, 430, 400, 500) === 0, 'hearts around it are gone');
   check(keepFigure(new Uint8Array(100), 10, 10) === null, 'an empty page gives nothing');
+}
+
+// 1b. On a card the character is in the middle; a box packed with writing at the side can be bigger.
+{
+  const s = sheet(900, 640);
+  s.pen([[40, 60], [240, 60], [240, 420], [40, 420], [40, 60]], 2.5);
+  for (let y = 90; y < 405; y += 26) for (let x = 60; x < 200; x += 44) s.pen([[x, y], [x + 30, y + 4]], 2.5);
+  s.pen(circle(450, 210, 50), 3); // head
+  s.pen([[450, 260], [450, 430]], 3);
+  s.pen([[370, 320], [530, 320]], 3);
+  s.pen([[450, 430], [395, 560]], 3);
+  s.pen([[450, 430], [505, 560]], 3);
+  s.pen([[400, 280], [500, 280], [520, 430], [380, 430], [400, 280]], 3); // dress
+  const box = inkIn(s.alpha, s.w, 0, 0, 250, 430);
+  const figure = inkIn(s.alpha, s.w, 360, 150, 540, 570);
+  const kept = keepFigure(s.alpha, s.w, s.h);
+  check(inkIn(kept, s.w, 360, 150, 540, 570) === figure, 'the character in the middle is kept', `box has ${box} ink, character ${figure}`);
+  check(inkIn(kept, s.w, 0, 0, 250, 430) === 0, 'the box of writing beside it goes');
 }
 
 // 2. Neat lines: a ring becomes one closed stroke about as wide as the pencil line.

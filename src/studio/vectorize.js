@@ -3,9 +3,9 @@
 // run the same in the browser and in a test.
 //
 // keepFigure: keep only the character. Lines are thickened until the strokes
-//   of one figure touch, the biggest blob is the character, and every line
-//   inside its outline (eyes, buttons) stays. Things around it (hearts, labels)
-//   go.
+//   of one figure touch, the biggest blob near the middle is the character, and
+//   every line inside its outline (eyes, buttons) stays. Things around it
+//   (hearts, labels, boxes of writing) go.
 // traceNeat: "neat lines". Finds the middle of every pencil line and redraws it
 //   as a smooth stroke of even width, so the shapes stay exactly Ada's but the
 //   line looks inked. Returns SVG path data.
@@ -47,28 +47,37 @@ export function keepFigure(alpha, w, h) {
   if (!any) return null;
   const thick = dilate(ink, w, h, Math.max(3, Math.round(Math.max(w, h) / 130)));
 
-  // Biggest blob of the thickened lines.
+  // The blob of thickened lines that is biggest once weighed by how near the
+  // middle it is. On a card the character is in the middle, and a box packed
+  // with writing at the side can be as big as the character or bigger.
   const label = new Int32Array(w * h);
   let best = 0;
-  let bestSize = 0;
+  let bestScore = 0;
   let next = 0;
   const stack = [];
   for (let i = 0; i < thick.length; i++) {
     if (!thick[i] || label[i]) continue;
     next++;
     let size = 0;
+    let sx = 0;
+    let sy = 0;
     label[i] = next;
     stack.push(i);
     while (stack.length) {
       const j = stack.pop();
       size++;
       const x = j % w;
+      sx += x;
+      sy += (j - x) / w;
       if (x > 0 && thick[j - 1] && !label[j - 1]) { label[j - 1] = next; stack.push(j - 1); }
       if (x < w - 1 && thick[j + 1] && !label[j + 1]) { label[j + 1] = next; stack.push(j + 1); }
       if (j >= w && thick[j - w] && !label[j - w]) { label[j - w] = next; stack.push(j - w); }
       if (j < w * h - w && thick[j + w] && !label[j + w]) { label[j + w] = next; stack.push(j + w); }
     }
-    if (size > bestSize) { bestSize = size; best = next; }
+    // 0 in the middle of the page, 1 in a corner.
+    const off = Math.hypot(sx / size / w - 0.5, sy / size / h - 0.5) / Math.SQRT1_2;
+    const score = size * (1 - off) ** 2;
+    if (score > bestScore) { bestScore = score; best = next; }
   }
 
   // Outside = what the border can reach without crossing the figure.
