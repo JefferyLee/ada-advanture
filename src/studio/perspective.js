@@ -29,33 +29,91 @@ export function toSmallGray(src) {
   return { gray, w, h };
 }
 
-// The brightness that best splits the picture into a dark group and a bright one.
-function otsu(gray) {
-  const hist = new Float64Array(256);
-  for (let i = 0; i < gray.length; i++) hist[Math.min(255, gray[i] | 0)]++;
-  let total = 0;
-  for (let v = 0; v < 256; v++) total += v * hist[v];
-  let below = 0;
-  let sumBelow = 0;
-  let best = 127;
-  let bestScore = -1;
-  for (let v = 0; v < 256; v++) {
-    below += hist[v];
-    if (below === 0) continue;
-    const above = gray.length - below;
-    if (above === 0) break;
-    sumBelow += v * hist[v];
-    const diff = sumBelow / below - (total - sumBelow) / above;
-    const score = below * above * diff * diff;
-    if (score > bestScore) { bestScore = score; best = v; }
+// Box blur of radius r, rows then columns.
+function blur(gray, w, h, r) {
+  const tmp = new Float32Array(w * h);
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      let count = 0;
+      for (let xx = Math.max(0, x - r); xx <= Math.min(w - 1, x + r); xx++, count++) sum += gray[y * w + xx];
+      tmp[y * w + x] = sum / count;
+    }
   }
-  return best;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      let count = 0;
+      for (let yy = Math.max(0, y - r); yy <= Math.min(h - 1, y + r); yy++, count++) sum += tmp[yy * w + x];
+      out[y * w + x] = sum / count;
+    }
+  }
+  return out;
 }
 
-const median = (values) => {
+const percentile = (values, q) => {
   const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
+  return sorted[Math.floor(q * (sorted.length - 1))];
 };
+const median = (values) => percentile(values, 0.5);
+
+// A straight line through points, as a point on it and a unit direction.
+function fitLine(points) {
+  let mx = 0;
+  let my = 0;
+  for (const [x, y] of points) { mx += x; my += y; }
+  mx /= points.length;
+  my /= points.length;
+  let sxx = 0;
+  let sxy = 0;
+  let syy = 0;
+  for (const [x, y] of points) { sxx += (x - mx) ** 2; sxy += (x - mx) * (y - my); syy += (y - my) ** 2; }
+  const angle = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+  return { px: mx, py: my, ux: Math.cos(angle), uy: Math.sin(angle) };
+}
+
+const offLine = (l, x, y) => Math.abs((x - l.px) * l.uy - (y - l.py) * l.ux);
+
+function meet(a, b) {
+  const cross = a.ux * b.uy - a.uy * b.ux;
+  if (Math.abs(cross) < 1e-6) return null;
+  const s = ((b.px - a.px) * b.uy - (b.py - a.py) * b.ux) / cross;
+  return [a.px + s * a.ux, a.py + s * a.uy];
+}
+
+// A curled or shaded corner is bitten out of the sheet, which pulls the point
+// furthest along that diagonal inward. So fit a straight line to the middle of
+// each side's outline instead, and put the corners where those lines meet.
+function fitSides(quad, inSheet, w, h) {
+  const rim = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (!inSheet(i)) continue;
+      if (x > 0 && x < w - 1 && y > 0 && y < h - 1 && inSheet(i - 1) && inSheet(i + 1) && inSheet(i - w) && inSheet(i + w)) continue;
+      rim.push([x, y]);
+    }
+  }
+  const lines = quad.map(([ax, ay], e) => {
+    const [bx, by] = quad[(e + 1) % 4];
+    const len = Math.hypot(bx - ax, by - ay) || 1;
+    let line = { px: ax, py: ay, ux: (bx - ax) / len, uy: (by - ay) / len };
+    let points = rim.filter(([x, y]) => {
+      const t = ((x - ax) * line.ux + (y - ay) * line.uy) / len;
+      return t > 0.2 && t < 0.8 && offLine(line, x, y) < 0.1 * len;
+    });
+    for (let pass = 0; pass < 2 && points.length >= 8; pass++) {
+      line = fitLine(points);
+      points = points.filter(([x, y]) => offLine(line, x, y) < 2);
+    }
+    return line;
+  });
+  const corners = lines.map((l, e) => meet(lines[(e + 3) % 4], l));
+  const slack = 0.05 * Math.max(w, h);
+  const fits = corners.every((c) => c && c[0] > -slack && c[1] > -slack && c[0] < w - 1 + slack && c[1] < h - 1 + slack);
+  return fits ? corners.map(([x, y]) => [Math.min(w - 1, Math.max(0, x)), Math.min(h - 1, Math.max(0, y))]) : quad;
+}
 
 // Look for a bright sheet on a darker surface. Returns its corners as
 // fractions of the picture (0..1), or null when there is no clear sheet: the
@@ -63,7 +121,23 @@ const median = (values) => {
 // found is only a shadow or uneven light.
 export function detectPage({ gray, w, h }) {
   const n = w * h;
-  const cut = otsu(gray);
+  // Carpets and towels are speckled, so look at a slightly blurred copy. Paper
+  // is the bright end of the middle of the photo, the surface what is usually
+  // at its frame, and the line between them a little nearer the paper (a dark
+  // shadow at the edge must not make a towel count as paper).
+  const soft = blur(gray, w, h, 1);
+  const middle = [];
+  const frame = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (x > 0.3 * w && x < 0.7 * w && y > 0.3 * h && y < 0.7 * h) middle.push(soft[y * w + x]);
+      if (x < 0.03 * w || x > 0.97 * w || y < 0.03 * h || y > 0.97 * h) frame.push(soft[y * w + x]);
+    }
+  }
+  const paper = percentile(middle, 0.75);
+  const surface = median(frame);
+  if (paper - surface < MIN_EDGE_STEP) return null;
+  const cut = paper - 0.4 * (paper - surface);
 
   // The surface the paper lies on: broad dark areas that can be reached from
   // the edge of the picture. "Broad" matters. A drawn line that runs off the
@@ -73,7 +147,7 @@ export function detectPage({ gray, w, h }) {
   // sheet, including the drawing on it.
   const THIN = 2;
   const dark = new Uint8Array(n);
-  for (let i = 0; i < n; i++) dark[i] = gray[i] <= cut ? 1 : 0;
+  for (let i = 0; i < n; i++) dark[i] = soft[i] <= cut ? 1 : 0;
   const broadX = new Uint8Array(n);
   const broad = new Uint8Array(n);
   for (let y = 0; y < h; y++) {
@@ -130,19 +204,22 @@ export function detectPage({ gray, w, h }) {
   }
 
   // The largest connected piece of "not surface" is the sheet. Its corners
-  // are the points furthest along each diagonal.
-  const seen = new Uint8Array(n);
+  // are first taken as the points furthest along each diagonal.
+  const seen = new Int32Array(n);
+  let piece = 0;
+  let best = 0;
   let bestSize = 0;
   let at = null;
   for (let start = 0; start < n; start++) {
     if (seen[start] || outside[start]) continue;
+    piece++;
     const far = { tl: Infinity, br: -Infinity, tr: -Infinity, bl: Infinity };
     const found = { tl: null, tr: null, br: null, bl: null };
     let size = 0;
     top = 0;
     stack[top++] = start;
-    seen[start] = 1;
-    const visit = (j) => { if (!seen[j] && !outside[j]) { seen[j] = 1; stack[top++] = j; } };
+    seen[start] = piece;
+    const visit = (j) => { if (!seen[j] && !outside[j]) { seen[j] = piece; stack[top++] = j; } };
     while (top > 0) {
       const i = stack[--top];
       size++;
@@ -157,10 +234,10 @@ export function detectPage({ gray, w, h }) {
       if (i >= w) visit(i - w);
       if (i < n - w) visit(i + w);
     }
-    if (size > bestSize) { bestSize = size; at = found; }
+    if (size > bestSize) { bestSize = size; best = piece; at = found; }
   }
   if (bestSize < 0.12 * n) return null;
-  const quad = [at.tl, at.tr, at.br, at.bl];
+  const quad = fitSides([at.tl, at.tr, at.br, at.bl], (i) => seen[i] === best, w, h);
 
   // The four points should enclose roughly the area found (a sheet, not a blob).
   let area = 0;

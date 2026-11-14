@@ -1,6 +1,7 @@
 // Checks finding and straightening a sheet of paper on made-up photos: angled, tilted, uneven
-// light, a light desk, paper running off the frame, a comic page with panel borders, and cases
-// where the whole photo must be kept. No browser needed.
+// light, a light desk, a speckled carpet, a towel next to a dark shadow, a curled corner, paper
+// running off the frame, a comic page with panel borders, and cases where the whole photo must be
+// kept. No browser needed.
 // Run:  node tests/studio/perspective.mjs
 import { toSmallGray, detectPage, straightSize, straighten, FULL_FRAME } from '../../src/studio/perspective.js';
 import { cleanLineArt } from '../../src/studio/cleanup.js';
@@ -8,16 +9,23 @@ import { cleanLineArt } from '../../src/studio/cleanup.js';
 function proj(q) { const m = []; const f = [[0, 0], [1, 0], [1, 1], [0, 1]]; for (let i = 0; i < 4; i++) { const [u, v] = f[i], [x, y] = q[i]; m.push([u, v, 1, 0, 0, 0, -u * x, -v * x, x]); m.push([0, 0, 0, u, v, 1, -u * y, -v * y, y]); }
   for (let c = 0; c < 8; c++) { let p = c; for (let r = c + 1; r < 8; r++) if (Math.abs(m[r][c]) > Math.abs(m[p][c])) p = r; [m[c], m[p]] = [m[p], m[c]]; for (let r = 0; r < 8; r++) if (r !== c) { const k = m[r][c] / m[c][c]; for (let j = c; j < 9; j++) m[r][j] -= k * m[c][j]; } } return m.map((r, i) => r[8] / r[i]); }
 // A "photo": a dark desk with a sheet seen at an angle. `draw(s,t)` says where the sheet is inked (s,t in 0..1 across the sheet).
-function photo(W, H, quad, draw, { desk = 70, paper = 225, light = 0 } = {}) {
+// speckle: carpet-like lumps of that much lighter or darker; shadow(x,y): where a very dark shadow falls on the desk;
+// curl: a shaded corner, the top left one, that far along each side.
+const lump = (x, y) => { const n = Math.sin((x >> 3) * 12.9898 + (y >> 3) * 78.233) * 43758.5453; return 2 * (n - Math.floor(n)) - 1; };
+function photo(W, H, quad, draw, { desk = 70, paper = 225, light = 0, speckle = 0, shadow = null, curl = 0 } = {}) {
   const data = new Uint8ClampedArray(W * H * 4);
-  for (let i = 0; i < W * H; i++) { const x = i % W; const v = desk + light * (x / W) + (Math.random() * 6 - 3); data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v; data[i * 4 + 3] = 255; }
+  for (let i = 0; i < W * H; i++) {
+    const x = i % W; const y = (i - x) / W;
+    const v = shadow?.(x, y) ? 15 : desk + light * (x / W) + speckle * lump(x, y) + (Math.random() * 6 - 3);
+    data[i * 4] = data[i * 4 + 1] = data[i * 4 + 2] = v; data[i * 4 + 3] = 255;
+  }
   const P = proj(quad); const N = 1700;
   for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) {
     const s = i / N, t = j / N;
     const z = P[6] * s + P[7] * t + 1;
     const x = (P[0] * s + P[1] * t + P[2]) / z;
     const y = (P[3] * s + P[4] * t + P[5]) / z;
-    const v = draw(s, t) ? 60 : paper + light * (x / W) * 0.3;
+    const v = draw(s, t) ? 60 : s + t < curl ? 100 : paper + light * (x / W) * 0.3;
     const p = (Math.min(H - 1, Math.round(y)) * W + Math.min(W - 1, Math.round(x))) * 4;
     data[p] = data[p + 1] = data[p + 2] = v;
   }
@@ -57,6 +65,9 @@ run('comic page with panel borders', [[250, 180], [1350, 230], [1300, 1050], [30
 run('strongly tilted (20 degrees)', [[420, 120], [1380, 420], [1150, 1120], [200, 800]], card);
 run('uneven light across desk and paper', truth, card, { light: 60 });
 run('light wooden desk (low contrast)', truth, card, { desk: 150, paper: 228 });
+run('speckled carpet', truth, card, { desk: 110, paper: 195, speckle: 60 });
+run('towel next to a dark shadow', truth, card, { desk: 125, paper: 190, shadow: (x, y) => x > 0.9 * W || (y > 0.9 * H && x > 0.6 * W) });
+run('curled, shaded corner', truth, card, { curl: 0.12 });
 const off = run('sheet cut off by the bottom of the frame', [[300, 250], [1300, 250], [1380, 1199], [220, 1199]], card, { light: 25 });
 const flatGray = (fill) => { const d = new Uint8ClampedArray(800 * 600 * 4); for (let i = 0; i < 800 * 600; i++) { const v = fill(i % 800, (i / 800) | 0); d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } return { data: d, width: 800, height: 600 }; };
 const keep = (x) => (x ? 'CROPPED (bad)' : 'whole photo kept');
