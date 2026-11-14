@@ -148,14 +148,21 @@ function PhotoButtons({ image, onAdd, onDraw, onColor, onLook, onRemove }) {
       </button>
       {!image && <button className="gn-btn" onClick={onDraw}><Icon name="pen" /> Draw It</button>}
       {image && <button className="gn-btn" onClick={onColor}><Icon name="pen" /> Draw &amp; Color</button>}
-      {image && can({ neat: !look.neat }) && (
-        <button className="gn-btn gn-toggle" aria-pressed={look.neat} onClick={() => onLook({ neat: !look.neat })}>
+      {image && can({ photo: false, neat: !look.neat }) && (
+        <button className="gn-btn gn-toggle" aria-pressed={look.neat} disabled={look.photo}
+          onClick={() => onLook({ neat: !look.neat })}>
           <Icon name="pen" /> Neat Lines
         </button>
       )}
-      {image && can({ figure: !look.figure }) && (
-        <button className="gn-btn gn-toggle" aria-pressed={look.figure} onClick={() => onLook({ figure: !look.figure })}>
+      {image && can({ photo: false, figure: !look.figure }) && (
+        <button className="gn-btn gn-toggle" aria-pressed={look.figure} disabled={look.photo}
+          onClick={() => onLook({ figure: !look.figure })}>
           Just My Character
+        </button>
+      )}
+      {image && can({ photo: !look.photo }) && (
+        <button className="gn-btn gn-toggle" aria-pressed={Boolean(look.photo)} onClick={() => onLook({ photo: !look.photo })}>
+          <Icon name="camera" /> Real Photo
         </button>
       )}
       {image && <button className="gn-btn" onClick={onRemove}><Icon name="trash" /> Take It Off</button>}
@@ -403,6 +410,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
   // Show another version of a drawing. Fills are spots on the drawing, so they
   // are moved to where they sit in the new version's box (a fill on something
   // that isn't there any more is dropped), and the colors are worked out again.
+  // The real photo covers its colors, so there they are only kept as fills.
   const changeLook = async (target, patch) => {
     const image = holderOf(page, target)?.image;
     if (!image) return;
@@ -417,7 +425,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
       y: (from.box.y + f.y * from.box.h - to.box.y) / to.box.h,
     })).filter((f) => f.x >= 0 && f.x <= 1 && f.y >= 0 && f.y <= 1);
     let colorId = null;
-    if (fills.length) {
+    if (fills.length && !to.photo) {
       colorId = newId();
       await putImage(colorId, await recolor(to, image.edits, fills, image.gap));
     }

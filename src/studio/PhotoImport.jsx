@@ -93,7 +93,8 @@ const svgImage = (svg) => new Promise((resolve, reject) => {
 
 // Photo in, clean line drawing out. Finds the sheet of paper in the photo,
 // straightens it, and turns it into line art. The four yellow dots mark the
-// paper's corners and can be dragged; two sliders fix up the lines.
+// paper's corners and can be dragged; two sliders fix up the lines. "Real
+// Photo" shows the straightened photo as it is instead.
 export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
   const [bitmap, setBitmap] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -107,6 +108,7 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
   const [justFigure, setJustFigure] = useState(kind === 'card');
   const [neat, setNeat] = useState(true);
   const [readWords, setReadWords] = useState(kind === 'card');
+  const [realPhoto, setRealPhoto] = useState(false);
   const [problem, setProblem] = useState(null); // 'empty' | 'corners'
   const [busy, setBusy] = useState(false);
   const photoRef = useRef(null);
@@ -167,6 +169,7 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
       canvas.width = result.width;
       canvas.height = result.height;
       const ctx = canvas.getContext('2d');
+      if (realPhoto) { ctx.putImageData(new ImageData(straight.data, straight.width, straight.height), 0, 0); return; }
       if (!svg) { ctx.putImageData(new ImageData(result.data, result.width, result.height), 0, 0); return; }
       const { sx, sy } = cropBox(result);
       svgImage(svg).then((img) => {
@@ -176,7 +179,7 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
       });
     }, 140);
     return () => clearTimeout(timer);
-  }, [source, corners, darkness, smudge, justFigure, neat]);
+  }, [source, corners, darkness, smudge, justFigure, neat, realPhoto]);
 
   const moveCorner = (index, x, y) => {
     setCorners((cs) => cs.map((c, i) => (i === index ? [clamp01(x), clamp01(y)] : c)));
@@ -198,19 +201,21 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
 
   const finish = async () => {
     const result = cleaned.current;
-    if (!result?.bbox) return;
+    if (!result || (!result.bbox && !realPhoto)) return;
     setBusy(true);
+    const sheet = sheetPhoto(flat.current.pixels);
     // Reading takes a few seconds, so it starts now and finishes on the page.
-    const words = kind === 'card' && readWords ? sheetPhoto(flat.current.pixels).then(readMyWords) : null;
+    const words = kind === 'card' && readWords ? sheet.then(readMyWords) : null;
     // Every version is made now, so Ada can switch on the page later: pencil or
-    // neat lines, each with everything or just the character. When nothing is
-    // around the character those two are the same, and only one is kept.
+    // neat lines, each with everything or just the character, and the photo as
+    // it is. When nothing is around the character those two are the same, and
+    // only one is kept; when no lines were found there is only the photo.
     const { raw, svg } = result;
     const figure = result.figure || onlyFigure(raw);
     const both = Boolean(figure.bbox) && inkOf(figure) < inkOf(raw);
     const shownSource = justFigure ? figure : raw;
     const versions = [];
-    for (const [res, isFigure] of both ? [[raw, false], [figure, true]] : [[raw, false]]) {
+    for (const [res, isFigure] of !raw.bbox ? [] : both ? [[raw, false], [figure, true]] : [[raw, false]]) {
       const { sx, sy, w, h } = cropBox(res);
       const pencil = document.createElement('canvas');
       pencil.width = w;
@@ -228,10 +233,12 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
         { neat: true, figure: isFigure, blob: neatBlob, vecBlob: new Blob([lines], { type: 'image/svg+xml' }), box },
       );
     }
+    versions.push({ photo: true, blob: await sheet, box: { x: 0, y: 0, w: raw.width, h: raw.height } });
     const origBlob = await toBlob(source.canvas, 'image/jpeg', 0.85);
-    await onDone({ versions, look: { neat, figure: both && justFigure }, origBlob, words });
+    await onDone({ versions, look: { neat, figure: both && justFigure, photo: realPhoto }, origBlob, words });
   };
 
+  const stuck = problem === 'corners' || (problem === 'empty' && !realPhoto);
   const aspect = source ? source.w / source.h : 4 / 3;
   const points = corners.map(([x, y]) => `${x * 100},${y * 100}`).join(' ');
 
@@ -273,11 +280,12 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
               </p>
             </section>
             <section className="gn-import-pane">
-              <h3 className="gn-h3 gn-accent-text">Cleaned Up</h3>
+              <h3 className="gn-h3 gn-accent-text">{realPhoto ? 'Real Photo' : 'Cleaned Up'}</h3>
               <div className="gn-import-view"><canvas ref={cleanRef} /></div>
               <p className="gn-note">
-                {neat ? 'Neat lines: your drawing, traced with a smooth pen.' : 'Straight, white paper, your pencil lines.'}
-                {justFigure && ' Things around your character are left out.'}
+                {realPhoto && 'Your photo as it is, just straightened.'}
+                {!realPhoto && (neat ? 'Neat lines: your drawing, traced with a smooth pen.' : 'Straight, white paper, your pencil lines.')}
+                {!realPhoto && justFigure && ' Things around your character are left out.'}
               </p>
             </section>
             <section className="gn-import-tools">
@@ -290,31 +298,33 @@ export default function PhotoImport({ file, kind = 'card', onCancel, onDone }) {
                 <Icon name="rotate" /> Turn It
               </button>
               <div className="gn-grid2">
-                <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={justFigure}
+                <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={justFigure} disabled={realPhoto}
                   onClick={() => setJustFigure((v) => !v)}>Just My Character</button>
-                <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={neat}
+                <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={neat} disabled={realPhoto}
                   onClick={() => setNeat((v) => !v)}><Icon name="pen" /> Neat Lines</button>
               </div>
+              <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={realPhoto}
+                onClick={() => setRealPhoto((v) => !v)}><Icon name="camera" /> Real Photo</button>
               {kind === 'card' && (
                 <button className="gn-btn gn-btn-small gn-toggle" aria-pressed={readWords}
                   onClick={() => setReadWords((v) => !v)}>Read My Words</button>
               )}
               <div className="gn-field">
                 <label className="gn-label-strong" htmlFor="gn-dark">Line darkness</label>
-                <input id="gn-dark" type="range" min="0" max="100" value={darkness}
+                <input id="gn-dark" type="range" min="0" max="100" value={darkness} disabled={realPhoto}
                   onChange={(e) => setDarkness(Number(e.target.value))} />
                 <div className="gn-range-ends"><span>Lighter</span><span>Darker</span></div>
               </div>
               <div className="gn-field">
                 <label className="gn-label-strong" htmlFor="gn-smudge">Erase smudges</label>
-                <input id="gn-smudge" type="range" min="0" max="100" value={smudge}
+                <input id="gn-smudge" type="range" min="0" max="100" value={smudge} disabled={realPhoto}
                   onChange={(e) => setSmudge(Number(e.target.value))} />
                 <div className="gn-range-ends"><span>Keep all</span><span>Erase more</span></div>
               </div>
               <p className="gn-note">Your real photo is always kept safe.</p>
-              {problem === 'empty' && <p className="gn-note gn-note-warn">I can't see any lines yet. Try making them darker.</p>}
+              {stuck && problem === 'empty' && <p className="gn-note gn-note-warn">I can't see any lines yet. Try making them darker, or use Real Photo.</p>}
               {problem === 'corners' && <p className="gn-note gn-note-warn">Those dots don't make a page. Move them to the four corners.</p>}
-              <button className="gn-btn gn-btn-primary gn-btn-big gn-push-down" disabled={!source || Boolean(problem) || busy}
+              <button className="gn-btn gn-btn-primary gn-btn-big gn-push-down" disabled={!source || stuck || busy}
                 onClick={finish}>
                 {busy ? 'Working...' : 'Looks Good!'} <Icon name="arrow" />
               </button>

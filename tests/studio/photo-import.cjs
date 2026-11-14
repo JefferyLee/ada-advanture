@@ -1,6 +1,6 @@
 // Browser test: importing a photo taken at an angle (finding the paper, dragging corners,
-// Whole Photo, Find My Paper, Turn It), Read My Words (with a made-up answer), and switching
-// the drawing's lines on the page.
+// Whole Photo, Find My Paper, Turn It), Read My Words (with a made-up answer), switching
+// the drawing's lines on the page, and Real Photo (the photo as it is, also with no lines).
 // Run:  npm run build && npm run preview      (in another terminal)
 //       node tests/studio/photo-import.cjs
 // Needs Playwright:  npm i -D playwright && npx playwright install chromium
@@ -144,6 +144,52 @@ const log = (...a) => console.log(...a);
   const afterLines = await layers();
   await flip('Just My Character');
   log('9 colored then switched: layers', before, '-> lines', afterLines, '-> everything', await layers());
+
+  // Real Photo: the straightened photo as it is. It covers the colors, which come back on the lines.
+  const typeOf = (img) => img.evaluate(async (e) => { const b = await (await fetch(e.src)).blob(); return [b.type, e.naturalWidth, e.naturalHeight]; });
+  const pressed = (name) => side.getByRole('button', { name }).getAttribute('aria-pressed');
+  await side.getByRole('button', { name: 'Real Photo' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.gn-stage .gn-portrait img').length === 1);
+  await page.waitForTimeout(300);
+  log('10 Real Photo on: picture', (await typeOf(page.locator('.gn-stage .gn-portrait img'))).join(' '), '(the straightened sheet) | colors hidden: 1 layer',
+    '| Neat Lines and Just My Character disabled:', await side.getByRole('button', { name: 'Neat Lines' }).isDisabled(), await side.getByRole('button', { name: 'Just My Character' }).isDisabled());
+  await page.screenshot({ path: S + '/shot-real-photo.png' });
+  await page.getByRole('button', { name: 'Draw & Color' }).click();
+  await art.waitFor(); await page.waitForTimeout(500);
+  const tools = await page.locator('.gn-panel-left .gn-tool').allTextContents();
+  const b2 = await art.boundingBox();
+  await page.mouse.move(b2.x + b2.width * 0.2, b2.y + b2.height * 0.5); await page.mouse.down();
+  await page.mouse.move(b2.x + b2.width * 0.8, b2.y + b2.height * 0.5, { steps: 8 }); await page.mouse.up();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForSelector('.gn-color', { state: 'detached' });
+  log('  Draw & Color on the photo: tools', tools.map((t) => t.trim()).join(', '), '| pen line on the page:',
+    await page.locator('.gn-stage .gn-portrait svg path').count(), '| photo under it:', await page.locator('.gn-stage .gn-portrait svg image').count());
+  await side.getByRole('button', { name: 'Real Photo' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.gn-stage .gn-portrait img').length === 1);
+  log('  Real Photo off: colors back', await page.locator('.gn-stage .gn-portrait img').count() === 1,
+    '| pen line kept', await page.locator('.gn-stage .gn-portrait svg path').count(), '| Real Photo pressed', await pressed('Real Photo'));
+
+  // A photo with no lines in it: only Real Photo can take it.
+  const plain = await page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 1600; c.height = 1200; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, c.height); g.addColorStop(0, '#9fd3f5'); g.addColorStop(1, '#f6f1e4'); x.fillStyle = g; x.fillRect(0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.9);
+  });
+  const [chooser2] = await Promise.all([page.waitForEvent('filechooser'), side.getByRole('button', { name: 'Change Photo' }).click()]);
+  await chooser2.setFiles({ name: 'sky.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(plain.split(',')[1], 'base64') });
+  await ready(); await page.waitForTimeout(400);
+  const good = page.getByRole('button', { name: 'Looks Good!' });
+  log('11 no lines: Looks Good! disabled', await good.isDisabled(), '| says:', await page.locator('.gn-note-warn').textContent());
+  const dialog = page.getByRole('dialog', { name: 'Clean up your photo' });
+  await dialog.getByRole('button', { name: 'Read My Words' }).click();
+  await dialog.getByRole('button', { name: 'Real Photo' }).click(); await page.waitForTimeout(400);
+  log('  Real Photo: Looks Good! enabled', await good.isEnabled(), '| heading', await page.locator('.gn-import-pane h3').nth(1).textContent(),
+    '| Neat Lines disabled', await dialog.getByRole('button', { name: 'Neat Lines' }).isDisabled());
+  await good.click();
+  await page.waitForSelector('.gn-modal', { state: 'detached' });
+  await page.waitForFunction(() => document.querySelector('.gn-stage .gn-portrait img')?.naturalWidth > 0);
+  log('  on the card:', (await typeOf(page.locator('.gn-stage .gn-portrait img'))).join(' '), '| switches offered (nothing to switch to):',
+    await side.getByRole('button', { name: /Neat Lines|Just My Character|Real Photo/ }).count());
   log('errors:', errors.length ? errors : 'none');
   await browser.close();
 })().catch((e) => { console.error('FAILED', e); process.exit(1); });

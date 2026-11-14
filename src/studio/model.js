@@ -95,11 +95,14 @@ const box = (id, title, color) => ({
 // A drawing imported from a photo also keeps every version made then:
 //   versions: [{ neat, figure, id, vecId?, box: { x, y, w, h } }]
 // (pencil or neat lines, just the character or everything; box is where that
-// version was cut from the straightened photo), and look: { neat, figure } says
-// which one is shown. Drawings from before that have `alt` instead: the other
-// kind of lines, same size.
+// version was cut from the straightened photo), plus { photo: true, id, box }:
+// the straightened photo itself, not cleaned up (a JPEG). look: { neat, figure,
+// photo } says which one is shown; with photo on, neat and figure are kept for
+// when it is switched off. Drawings from before that have `alt` instead: the
+// other kind of lines, same size.
 
-export const sameLook = (v, look) => v.neat === look.neat && v.figure === look.figure;
+export const sameLook = (v, look) => (look.photo ? Boolean(v.photo)
+  : !v.photo && v.neat === look.neat && v.figure === look.figure);
 
 export function drawingLook(image) {
   return image.look || { neat: Boolean(image.vecId), figure: false };

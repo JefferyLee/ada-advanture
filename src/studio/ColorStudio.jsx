@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
-import { PAINT_COLORS, drawingBox, strokePath } from './model.js';
+import { PAINT_COLORS, drawingBox, drawingLook, strokePath } from './model.js';
 import { buildRegions, paintFills, regionAt } from './regions.js';
 import { imageBlob } from './store.js';
 
@@ -13,6 +13,7 @@ const HISTORY = 50; // undo steps kept; each fill keeps a copy of the colors
 const NOTES = {
   pen: 'Pick a color and draw.',
   eraser: 'Rub out lines, your pencil lines too. Colors stay.',
+  photoEraser: 'Rub out lines, and bits of your photo too.',
   fill: 'Pick a color, then tap a part of your drawing.',
   clear: 'Tap a color to take it off.',
 };
@@ -131,13 +132,16 @@ export async function recolor(version, edits, fills, gap = DEFAULT_GAP) {
 // Drawing and coloring one drawing. Pen strokes and eraser strokes are kept in
 // order on top of the line art, which itself never changes; colors go on a
 // separate layer underneath. A fill colors the area its lines enclose now, and
-// stays when lines are drawn or rubbed out later, as on paper.
+// stays when lines are drawn or rubbed out later, as on paper. On the real
+// photo there are no areas to fill, so only the pen and eraser are offered, and
+// the fills made on its lines are handed back as they were.
 export default function ColorStudio({ image, onCancel, onDone }) {
   const box = drawingBox(image);
+  const photo = Boolean(drawingLook(image).photo);
   const [art, setArt] = useState(null); // canvas with the line art
   const [failed, setFailed] = useState(false);
   const [hist, setHist] = useState(null); // { past, now: { edits, fills, colors, gap }, future }
-  const [tool, setTool] = useState(image.id ? 'fill' : 'pen'); // pen | eraser | fill | clear
+  const [tool, setTool] = useState(image.id && !photo ? 'fill' : 'pen'); // pen | eraser | fill | clear
   const [color, setColor] = useState(PAINT_COLORS[image.id ? 2 : 0].hex);
   const [width, setWidth] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -153,9 +157,10 @@ export default function ColorStudio({ image, onCancel, onDone }) {
     (async () => {
       const a = await loadLineArt(image.id, image.w, image.h);
       const edits = image.edits ?? [];
-      const fills = image.fills ?? [];
+      const fills = photo ? [] : image.fills ?? [];
       const gap = image.gap ?? DEFAULT_GAP;
       let colors = image.colorId ? await colorsFromImage(image.colorId, a.width, a.height) : null;
+      if (!colors && photo) colors = new Uint8Array(a.width * a.height);
       if (!colors) colors = colorsFromFills(regionsOf(inkOf(a, edits, box), gap).labels, a.width, a.height, fills);
       if (!alive) return;
       setArt(a);
@@ -278,6 +283,7 @@ export default function ColorStudio({ image, onCancel, onDone }) {
 
   const finish = async () => {
     setBusy(true);
+    if (photo) { await onDone({ colorBlob: null, fills: image.fills ?? [], gap: now.gap, edits: now.edits }); return; }
     // Keep one fill per area: the last color each one was given.
     const { labels } = regionsFor(now.edits, now.gap);
     const last = new Map();
@@ -320,14 +326,18 @@ export default function ColorStudio({ image, onCancel, onDone }) {
               <button className="gn-tile gn-tool" aria-pressed={tool === 'eraser'} onClick={() => setTool('eraser')}>
                 <Icon name="eraser" size={24} /> Eraser
               </button>
-              <button className="gn-tile gn-tool" aria-pressed={tool === 'fill'} onClick={() => setTool('fill')}>
-                <Icon name="bucket" size={24} /> Fill
-              </button>
-              <button className="gn-tile gn-tool" aria-pressed={tool === 'clear'} onClick={() => setTool('clear')}>
-                <Icon name="close" size={24} /> Un-color
-              </button>
+              {!photo && (
+                <>
+                  <button className="gn-tile gn-tool" aria-pressed={tool === 'fill'} onClick={() => setTool('fill')}>
+                    <Icon name="bucket" size={24} /> Fill
+                  </button>
+                  <button className="gn-tile gn-tool" aria-pressed={tool === 'clear'} onClick={() => setTool('clear')}>
+                    <Icon name="close" size={24} /> Un-color
+                  </button>
+                </>
+              )}
             </div>
-            <p className="gn-note">{NOTES[tool]}</p>
+            <p className="gn-note">{NOTES[photo && tool === 'eraser' ? 'photoEraser' : tool]}</p>
             {drawing && (
               <div className="gn-grid3">
                 {WIDTHS.map((w, i) => {
