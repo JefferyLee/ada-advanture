@@ -66,10 +66,13 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   await mac.page.waitForTimeout(400);
   await mac.page.getByRole('button', { name: 'Looks Good!' }).click();
   await mac.stage.locator('.gn-portrait img').first().waitFor();
-  await mac.page.locator('.gn-panel').getByRole('button', { name: 'Color It' }).click();
+  await mac.page.locator('.gn-panel').getByRole('button', { name: 'Draw & Color' }).click();
   await mac.page.waitForFunction(() => { const c = document.querySelector('.gn-color-canvas'); return c && c.style.visibility === 'visible'; });
   const cb = await mac.page.locator('.gn-color-canvas').boundingBox();
   await mac.page.mouse.click(cb.x + cb.width * 0.5, cb.y + cb.height * 0.3);
+  await mac.page.locator('.gn-color').getByRole('button', { name: 'Pen' }).click();
+  await mac.page.mouse.move(cb.x + cb.width * 0.2, cb.y + cb.height * 0.9); await mac.page.mouse.down();
+  await mac.page.mouse.move(cb.x + cb.width * 0.8, cb.y + cb.height * 0.9, { steps: 8 }); await mac.page.mouse.up();
   await mac.page.locator('.gn-color').getByRole('button', { name: 'Done' }).click();
   await mac.synced();
   log('1 iMac made a book. Status:', await mac.label());
@@ -78,9 +81,11 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   await pad.page.goto(URL);
   await pad.page.locator('.gn-cover-title', { hasText: 'Fog' }).waitFor({ timeout: 15000 });
   await pad.page.locator('.gn-cover-title', { hasText: 'Fog' }).click();
-  await pad.stage.locator('.gn-portrait img').nth(1).waitFor();
+  await pad.stage.locator('.gn-portrait img').first().waitFor();
+  await pad.stage.locator('.gn-portrait svg image').waitFor({ state: 'attached' });
   const imgs = await pad.stage.locator('.gn-portrait img').evaluateAll((els) => Promise.all(els.map((e) => new Promise((r) => { const d = () => r(e.naturalWidth); e.complete ? d() : (e.onload = d); }))));
-  log('2 iPad opened it: name', await pad.box('Character name').textContent(), '| powers:', await pad.box('POWERS text').textContent(), '| drawing layers fetched (widths):', imgs.join(','));
+  log('2 iPad opened it: name', await pad.box('Character name').textContent(), '| powers:', await pad.box('POWERS text').textContent(), '| color layer fetched (width):', imgs.join(','),
+    '| line art and the pen stroke drawn on the iMac:', await pad.stage.locator('.gn-portrait svg image').count(), await pad.stage.locator('.gn-portrait svg path').count());
 
   // 3. An edit on the iPad reaches the iMac while its editor is open
   await pad.box('WEAKNESS text').click(); await pad.page.keyboard.type('Birds.');
@@ -114,7 +119,7 @@ const URL = (process.env.STUDIO_URL || 'http://localhost:8788/studio/');
   log('  iPad original keeps the iPad text:', await pad.box('ABOUT text').textContent());
   await pad.page.getByRole('button', { name: 'My Books' }).click();
   await pad.page.locator('.gn-cover-title', { hasText: 'copy' }).click();
-  log('  iPad copy has the iMac text:', await pad.box('ABOUT text').textContent(), '| drawing:', await pad.stage.locator('.gn-portrait img').count(), 'layers');
+  log('  iPad copy has the iMac text:', await pad.box('ABOUT text').textContent(), '| drawing:', await pad.stage.locator('.gn-portrait img, .gn-portrait svg image').count(), 'layers');
   await pad.page.getByRole('button', { name: 'My Books' }).click();
 
   // 5. My Photos: taken on the iPad, used on the iMac, kept on both and marked used

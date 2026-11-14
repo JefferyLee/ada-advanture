@@ -137,7 +137,7 @@ function TextStyle({ part, onStyle }) {
   );
 }
 
-function PhotoButtons({ image, onAdd, onColor, onLook, onRemove }) {
+function PhotoButtons({ image, onAdd, onDraw, onColor, onLook, onRemove }) {
   const look = image ? drawingLook(image) : null;
   // A switch is only offered when that version of the drawing was made.
   const can = (patch) => drawingVersions(image).some((v) => sameLook(v, { ...look, ...patch }));
@@ -146,7 +146,8 @@ function PhotoButtons({ image, onAdd, onColor, onLook, onRemove }) {
       <button className="gn-btn gn-btn-yellow" onClick={onAdd}>
         <Icon name="camera" /> {image ? 'Change Photo' : 'Add Photo'}
       </button>
-      {image && <button className="gn-btn" onClick={onColor}><Icon name="bucket" /> Color It</button>}
+      {!image && <button className="gn-btn" onClick={onDraw}><Icon name="pen" /> Draw It</button>}
+      {image && <button className="gn-btn" onClick={onColor}><Icon name="pen" /> Draw &amp; Color</button>}
       {image && can({ neat: !look.neat }) && (
         <button className="gn-btn gn-toggle" aria-pressed={look.neat} onClick={() => onLook({ neat: !look.neat })}>
           <Icon name="pen" /> Neat Lines
@@ -299,7 +300,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
   const [picking, setPicking] = useState(false); // choosing from My Photos
   const [importFile, setImportFile] = useState(null);
   const [importPhoto, setImportPhoto] = useState(null); // the New Photo being imported, if it is one
-  const [coloring, setColoring] = useState(null); // which drawing is open in Color It
+  const [coloring, setColoring] = useState(null); // which drawing is open in Draw & Color
   const [helperChange, setHelperChange] = useState(null); // the book as the helper left it
   const [reading, setReading] = useState(null); // words being read off a card photo: { pageId, said, answer }
   const stageRef = useRef(null);
@@ -381,13 +382,21 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
     closeImport();
   };
 
-  const colorDone = async ({ colorBlob, fills, gap }) => {
+  const colorDone = async ({ colorBlob, fills, gap, edits }) => {
     let colorId = null;
     if (colorBlob) {
       colorId = newId();
       await putImage(colorId, colorBlob);
     }
-    update((b) => { Object.assign(holderOf(onPage(b), coloring).image, { colorId, fills, gap }); });
+    const { w, h } = coloringImage;
+    update((b) => {
+      const holder = holderOf(onPage(b), coloring);
+      // A drawing started on a blank sheet goes on the page once there is
+      // something on it, and comes off again if it ends up empty.
+      if (!holder.image?.id && !edits.length && !colorId) holder.image = null;
+      else if (!holder.image) holder.image = { w, h, colorId, fills, gap, edits };
+      else Object.assign(holder.image, { colorId, fills, gap, edits });
+    });
     setColoring(null);
   };
 
@@ -410,7 +419,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
     let colorId = null;
     if (fills.length) {
       colorId = newId();
-      await putImage(colorId, await recolor(to.id, fills, image.gap));
+      await putImage(colorId, await recolor(to, image.edits, fills, image.gap));
     }
     update((b) => {
       const held = holderOf(onPage(b), target).image;
@@ -422,6 +431,7 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
 
   const photo = (target) => ({
     onAdd: () => pickPhoto(target),
+    onDraw: () => setColoring(target),
     onColor: () => setColoring(target),
     onLook: (patch) => changeLook(target, patch),
     onRemove: () => update((b) => { holderOf(onPage(b), target).image = null; }),
@@ -466,7 +476,14 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
   };
   const changePending = helperChange !== null && helperChange === book;
 
-  const coloringImage = coloring ? holderOf(page, coloring)?.image : null;
+  // With no drawing yet, Draw It opens a blank sheet the shape of the space it is for.
+  const blankSheet = (target) => {
+    if (target === 'card') return { w: 600, h: 1000 };
+    const r = panelRects(page.layout)[page.panels.findIndex((p) => `panel:${p.id}` === target)];
+    const k = 1000 / Math.max(r.w, r.h);
+    return { w: Math.round(r.w * k), h: Math.round(r.h * k) };
+  };
+  const coloringImage = coloring ? holderOf(page, coloring)?.image ?? blankSheet(coloring) : null;
 
   return (
     <div className="gn-app">
@@ -512,12 +529,12 @@ export default function Editor({ book: initialBook, photos, saveLabel, saveOk, o
             <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}>
               {isComic ? (
                 <ComicPage key={page.id} page={page} selected={live} tool={tool} pen={pen} focusItem={focusItem}
-                  onSelect={setSelected} onText={setText} onAddPhoto={pickPhoto}
+                  onSelect={setSelected} onText={setText} onAddPhoto={pickPhoto} onDraw={setColoring}
                   onAddStroke={addStroke} onEraseStroke={eraseStroke}
                   onChangeItem={changeItem} onDeleteItem={deleteItem} />
               ) : (
                 <CardPage key={page.id} page={page} selected={live}
-                  onSelect={setSelected} onText={setText} onAddPhoto={() => pickPhoto('card')} />
+                  onSelect={setSelected} onText={setText} onAddPhoto={() => pickPhoto('card')} onDraw={() => setColoring('card')} />
               )}
             </div>
           </div>

@@ -483,10 +483,20 @@ html[data-theme='crafty'] .gn-stage .gn-page { border-color: rgba(27, 27, 47, 0.
    of each other. */
 .gn-drawing { position: absolute; inset: 0; }
 .gn-drawing img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.gn-drawing svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .gn-portrait-empty {
   width: 100%; height: 90%; border: 3px dashed #9aa3b5; border-radius: 14px; background: #f6f8fc;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  font-family: 'Baloo 2', sans-serif; font-size: 20px; font-weight: 700; color: var(--page-muted) !important;
+  display: flex; flex-direction: column; align-items: center; padding-bottom: 16px;
+  font-family: 'Baloo 2', sans-serif; font-size: 20px; font-weight: 700; color: var(--page-muted);
+}
+.gn-portrait-add {
+  flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  border: none; background: none; font: inherit; color: inherit !important;
+}
+.gn-portrait-draw, .gn-cell-add {
+  display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
+  border: 2px dashed #9aa3b5; border-radius: 12px; background: #fff;
+  font-family: 'Baloo 2', sans-serif; font-size: 16px; font-weight: 700; color: var(--page-muted) !important;
 }
 
 /* Comic page. Everything inside is placed in page pixels. */
@@ -494,12 +504,8 @@ html[data-theme='crafty'] .gn-stage .gn-page { border-color: rgba(27, 27, 47, 0.
 .gn-comic-inner { position: absolute; inset: 0; }
 .gn-cell { position: absolute; border: 3px solid var(--ink); background: #fff; overflow: hidden; }
 .gn-cell.is-selected { outline: 3px dashed var(--select); outline-offset: 3px; }
-.gn-cell-add {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px;
-  border: 2px dashed #9aa3b5; border-radius: 12px; background: #f6f8fc;
-  font-family: 'Baloo 2', sans-serif; font-size: 16px; font-weight: 700; color: var(--page-muted) !important;
-}
+.gn-cell-adds { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; }
+.gn-cell-add { background: #f6f8fc; }
 .gn-ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .gn-ink.is-active { pointer-events: auto; touch-action: none; cursor: crosshair; }
 .gn-comic.is-drawing .gn-item { pointer-events: none; }
@@ -533,15 +539,16 @@ html[data-theme='crafty'] .gn-stage .gn-page { border-color: rgba(27, 27, 47, 0.
 .gn-handle-delete { right: -22px; top: -22px; background: #fff; }
 .gn-handle-size { right: -22px; bottom: -22px; cursor: ew-resize; }
 
-/* ---- Color It: a full-screen studio for one drawing ---- */
+/* ---- Draw & Color: a full-screen studio for one drawing ---- */
 .gn-modal.gn-modal-full { padding: 0; background: var(--desk); display: block; }
 .gn-color { width: 100%; height: 100dvh; display: flex; flex-direction: column; }
 .gn-panel-left { border-left: none; border-right: var(--edge); }
 .gn-color-stage { flex: 1; min-width: 0; min-height: 0; padding: 20px; display: grid; place-items: center; }
 .gn-color-canvas {
   height: auto; background: #fff; border: var(--page-edge); box-shadow: var(--page-shadow);
-  cursor: pointer; touch-action: manipulation;
+  cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
+.gn-color-canvas.is-drawing { cursor: crosshair; }
 
 /* ---- Helper bar ---- */
 .gn-helper {

@@ -130,7 +130,7 @@ const log = (...a) => console.log(...a);
     '(bigger, the arms are back)', everything.w * everything.h > start.w * start.h, '| on again: back', figureAgain.src === start.src);
 
   // Colored, then switched: the color layer is worked out again for the other version.
-  await page.getByRole('button', { name: 'Color It' }).click();
+  await page.getByRole('button', { name: 'Draw & Color' }).click();
   const art = page.locator('.gn-color canvas').first();
   await art.waitFor();
   await page.waitForTimeout(500);

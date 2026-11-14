@@ -2,22 +2,12 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import Drawing from './Drawing.jsx';
 import EditableText from './EditableText.jsx';
 import Icon from './Icon.jsx';
-import { INNER_H, INNER_W, PAGE_H, PAGE_W, newId, panelRects, partStyle } from './model.js';
+import { INNER_H, INNER_W, PAGE_H, PAGE_W, newId, panelRects, partStyle, strokePath } from './model.js';
 
 const PLACEHOLDER = { speech: 'Say something', thought: 'Think something', caption: 'Meanwhile...', sound: 'POW!' };
 const LABEL = { speech: 'Speech bubble', thought: 'Thought bubble', caption: 'Caption', sound: 'Sound word' };
 
 const round = (v) => Math.round(v * 10) / 10;
-
-// A smooth line through the pen's points.
-export function strokePath(points) {
-  if (points.length < 4) return `M${points[0]} ${points[1]}l0.01 0`;
-  let d = `M${points[0]} ${points[1]}`;
-  for (let i = 2; i < points.length - 2; i += 2) {
-    d += `Q${points[i]} ${points[i + 1]} ${round((points[i] + points[i + 2]) / 2)} ${round((points[i + 1] + points[i + 3]) / 2)}`;
-  }
-  return `${d}L${points[points.length - 2]} ${points[points.length - 1]}`;
-}
 
 // Screen position -> page position, whatever the page is scaled to.
 function toPage(event, el) {
@@ -164,7 +154,7 @@ function ComicItem({ item, selected, readOnly, autoFocus, onSelect, onText, onCh
 // drawn over the page, and bubbles on top.
 export default function ComicPage({
   page, selected, tool = 'move', pen, readOnly, focusItem,
-  onSelect, onText, onAddPhoto, onAddStroke, onEraseStroke, onChangeItem, onDeleteItem,
+  onSelect, onText, onAddPhoto, onDraw, onAddStroke, onEraseStroke, onChangeItem, onDeleteItem,
 }) {
   const rects = panelRects(page.layout);
   const drawingMode = !readOnly && (tool === 'pen' || tool === 'eraser');
@@ -181,9 +171,14 @@ export default function ComicPage({
               onClick={() => { if (!readOnly) onSelect(target); }}>
               {panel.image && <Drawing image={panel.image} />}
               {!panel.image && !readOnly && tool === 'move' && (
-                <button className="gn-cell-add" onClick={(e) => { e.stopPropagation(); onSelect(target); onAddPhoto(target); }}>
-                  <Icon name="camera" size={20} /> Photo
-                </button>
+                <div className="gn-cell-adds">
+                  <button className="gn-cell-add" onClick={(e) => { e.stopPropagation(); onSelect(target); onAddPhoto(target); }}>
+                    <Icon name="camera" size={20} /> Photo
+                  </button>
+                  <button className="gn-cell-add" onClick={(e) => { e.stopPropagation(); onSelect(target); onDraw(target); }}>
+                    <Icon name="pen" size={20} /> Draw
+                  </button>
+                </div>
               )}
             </div>
           );

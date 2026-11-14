@@ -1,4 +1,4 @@
-// Browser test: comic page (bubbles, drag, pen, eraser, layouts), Color It, helper adding a
+// Browser test: comic page (bubbles, drag, pen, eraser, layouts), Draw & Color, helper adding a
 // bubble, reload, print layout.
 // Run:  npm run build && npm run preview      (in another terminal)
 //       node tests/studio/comic.cjs
@@ -91,7 +91,7 @@ const log = (...a) => console.log(...a);
   await stage.locator('.gn-cell .gn-drawing img').first().waitFor();
   log('9 photo in panel 4:', await stage.locator('.gn-cell').nth(3).locator('img').count(), 'image');
 
-  await page.locator('.gn-panel').getByRole('button', { name: 'Color It' }).click();
+  await page.locator('.gn-panel').getByRole('button', { name: 'Draw & Color' }).click();
   const canvas = page.locator('.gn-color-canvas');
   await page.waitForFunction(() => { const c = document.querySelector('.gn-color-canvas'); return c && c.style.visibility === 'visible' && c.width > 100; });
   const cb = await canvas.boundingBox();

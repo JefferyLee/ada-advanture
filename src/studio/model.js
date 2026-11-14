@@ -85,7 +85,12 @@ const box = (id, title, color) => ({
   body: part('', 'hand', 'm', 'black'),
 });
 
-// A drawing is { id, origId, w, h } plus, once colored, { colorId, fills, gap }.
+// A drawing is { id, origId, w, h } plus, once colored, { colorId, fills, gap },
+// and once drawn on, edits: Ada's pen and eraser strokes in order,
+//   [{ color, size, points: [x, y, x, y, ...] }] or [{ erase: true, size, points }]
+// in the coordinates of the straightened photo (see box below), so they stay
+// put when she switches lines. A drawing started on a blank sheet has no id
+// (no line art) and no origId.
 // id is the line art shown (PNG); with neat lines vecId is the same lines as SVG.
 // A drawing imported from a photo also keeps every version made then:
 //   versions: [{ neat, figure, id, vecId?, box: { x, y, w, h } }]
@@ -112,6 +117,24 @@ export function drawingVersions(image) {
 
 // The fields that say which version is on show.
 export const shownVersion = (v) => ({ id: v.id, ...(v.vecId ? { vecId: v.vecId } : {}), w: v.box.w, h: v.box.h });
+
+// Where the drawing on show was cut from the straightened photo.
+export function drawingBox(image) {
+  const shown = drawingVersions(image).find((v) => sameLook(v, drawingLook(image)));
+  return shown ? shown.box : { x: 0, y: 0, w: image.w, h: image.h };
+}
+
+const round = (v) => Math.round(v * 10) / 10;
+
+// A smooth line through the pen's points.
+export function strokePath(points) {
+  if (points.length < 4) return `M${points[0]} ${points[1]}l0.01 0`;
+  let d = `M${points[0]} ${points[1]}`;
+  for (let i = 2; i < points.length - 2; i += 2) {
+    d += `Q${points[i]} ${points[i + 1]} ${round((points[i] + points[i + 2]) / 2)} ${round((points[i + 1] + points[i + 3]) / 2)}`;
+  }
+  return `${d}L${points[points.length - 2]} ${points[points.length - 1]}`;
+}
 
 export function newCardPage() {
   return {

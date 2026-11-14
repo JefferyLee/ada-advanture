@@ -5,7 +5,7 @@ import { PAGE_H, PAGE_W, partStyle } from './model.js';
 
 // A character card: name on top, the drawing in the middle, two text boxes on
 // each side. Drawn at a fixed 900x636 and scaled by whoever shows it.
-export default function CardPage({ page, selected, readOnly, onSelect, onText, onAddPhoto }) {
+export default function CardPage({ page, selected, readOnly, onSelect, onText, onAddPhoto, onDraw }) {
   const isSel = (target) => !readOnly && selected === target;
 
   const text = (target, p, role, extra) => (
@@ -41,10 +41,13 @@ export default function CardPage({ page, selected, readOnly, onSelect, onText, o
         <div className="gn-portrait">
           {page.image && <Drawing image={page.image} />}
           {!page.image && !readOnly && (
-            <button className="gn-portrait-empty" onClick={onAddPhoto}>
-              <Icon name="camera" size={40} />
-              Add your drawing
-            </button>
+            <div className="gn-portrait-empty">
+              <button className="gn-portrait-add" onClick={onAddPhoto}>
+                <Icon name="camera" size={40} />
+                Add your drawing
+              </button>
+              <button className="gn-portrait-draw" onClick={onDraw}><Icon name="pen" size={20} /> Draw it here</button>
+            </div>
           )}
         </div>
         <div className="gn-card-col">{page.boxes.slice(2, 4).map(box)}</div>
