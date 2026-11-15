@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import Drawing from './Drawing.jsx';
 import EditableText from './EditableText.jsx';
 import Icon from './Icon.jsx';
-import { INNER_H, INNER_W, PAGE_H, PAGE_W, newId, panelRects, partStyle, strokePath } from './model.js';
+import { INNER_H, INNER_W, PAGE_H, PAGE_W, TITLE_H, newId, panelRects, partStyle, strokePath } from './model.js';
 
 const PLACEHOLDER = { speech: 'Say something', thought: 'Think something', caption: 'Meanwhile...', sound: 'POW!' };
 const LABEL = { speech: 'Speech bubble', thought: 'Thought bubble', caption: 'Caption', sound: 'Sound word' };
@@ -150,8 +150,8 @@ function ComicItem({ item, selected, readOnly, autoFocus, onSelect, onText, onCh
   );
 }
 
-// A comic page: panels that can hold a photographed drawing, pen strokes
-// drawn over the page, and bubbles on top.
+// A comic page: its title, panels that can hold a photographed drawing, pen
+// strokes drawn over the page, and bubbles on top.
 export default function ComicPage({
   page, selected, tool = 'move', pen, readOnly, focusItem,
   onSelect, onText, onAddPhoto, onDraw, onAddStroke, onEraseStroke, onChangeItem, onDeleteItem,
@@ -162,6 +162,11 @@ export default function ComicPage({
   return (
     <div className={`gn-page gn-comic${drawingMode ? ' is-drawing' : ''}`} style={{ width: PAGE_W, height: PAGE_H }}>
       <div className="gn-comic-inner">
+        <div className={`gn-comic-title${!readOnly && selected === 'title' ? ' is-selected' : ''}`} style={{ height: TITLE_H - 4 }}>
+          <EditableText value={page.title.text} style={partStyle(page.title, 'heading')} placeholder="Page title"
+            label="Page title" singleLine readOnly={readOnly}
+            onFocus={() => onSelect('title')} onChange={(t) => onText('title', t)} />
+        </div>
         {rects.map((r, i) => {
           const panel = page.panels[i];
           const target = `panel:${panel.id}`;

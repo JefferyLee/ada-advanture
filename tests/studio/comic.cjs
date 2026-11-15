@@ -1,4 +1,4 @@
-// Browser test: comic page (bubbles, drag, pen, eraser, layouts), Draw & Color, helper adding a
+// Browser test: comic page (title, bubbles, drag, pen, eraser, layouts), Draw & Color, helper adding a
 // bubble, reload, print layout.
 // Run:  npm run build && npm run preview      (in another terminal)
 //       node tests/studio/comic.cjs
@@ -46,6 +46,18 @@ const log = (...a) => console.log(...a);
   await page.getByRole('button', { name: 'Sound Word', exact: true }).click();
   await page.keyboard.type('ZAP!');
   log('5 items:', await stage.locator('.gn-item').count(), '| sound:', await stage.locator('.gn-item-sound .gn-text').textContent());
+
+  // The page's own title, above the panels; the page list shows it, not a bubble.
+  const thumbName = () => page.locator('.gn-thumb').nth(1).locator('.gn-thumb-name').textContent();
+  const listedBefore = await thumbName();
+  const title = stage.getByRole('textbox', { name: 'Page title' });
+  await title.click();
+  await page.keyboard.type('The Big Escape');
+  await page.locator('.gn-panel').getByRole('button', { name: 'Red', exact: true }).click();
+  const tb = await stage.locator('.gn-comic-title').boundingBox();
+  const cell0 = await stage.locator('.gn-cell').first().boundingBox();
+  log('5b title:', await title.textContent(), '|', await title.evaluate((e) => getComputedStyle(e).color), '| above the panels:', tb.y + tb.height <= cell0.y,
+    '| page list before:', listedBefore, '-> now:', await thumbName());
 
   // Pen
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
@@ -122,7 +134,7 @@ const log = (...a) => console.log(...a);
   let sent = null;
   await page.route('**/api/studio/helper', async (route) => {
     sent = route.request().postDataJSON();
-    const first = sent.page.items[0].target;
+    const first = sent.page.items.find((i) => i.target.startsWith('item:')).target;
     await route.fulfill({ json: { reply: 'I added a sound word and fixed your bubble.', actions: [
       { type: 'add_bubble', target: 'page', text: 'KA-BOOM!', font: null, size: null, color: null, box_style: null, bubble_kind: 'sound' },
       { type: 'set_text', target: first, text: 'Take that, Fog! Ha!', font: null, size: null, color: null, box_style: null, bubble_kind: null },
@@ -131,7 +143,7 @@ const log = (...a) => console.log(...a);
   await page.locator('#gn-ask').fill('add a sound word');
   await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Keep It' }).waitFor();
-  log('12 helper saw:', JSON.stringify({ kind: sent.page.kind, panels: sent.page.panels, items: sent.page.items.map((i) => i.kind + ':' + i.text) }));
+  log('12 helper saw:', JSON.stringify({ kind: sent.page.kind, panels: sent.page.panels, items: sent.page.items.map((i) => (i.kind || i.target) + ':' + i.text) }));
   log('   after helper:', await stage.locator('.gn-item .gn-text').allTextContents());
   await page.getByRole('button', { name: 'Keep It' }).click();
   await page.waitForTimeout(100);
@@ -145,7 +157,7 @@ const log = (...a) => console.log(...a);
   await stage.locator('.gn-cell .gn-drawing img').nth(1).waitFor();
   log('13 after reload: strokes', await strokes(), '| items', await stage.locator('.gn-item').count(), '| drawing layers', await stage.locator('.gn-cell .gn-drawing img').count(), '| thumb:', await page.locator('.gn-thumb').nth(1).textContent());
   await page.emulateMedia({ media: 'print' });
-  log('14 print:', JSON.stringify(await page.evaluate(() => { const p = document.querySelector('.gn-print .gn-page'); const r = p.getBoundingClientRect(); return { size: Math.round(r.width) + 'x' + Math.round(r.height), strokes: p.querySelectorAll('.gn-ink path').length - 1, items: p.querySelectorAll('.gn-item').length, handles: p.querySelectorAll('.gn-handle').length }; })));
+  log('14 print:', JSON.stringify(await page.evaluate(() => { const p = document.querySelector('.gn-print .gn-page'); const r = p.getBoundingClientRect(); return { size: Math.round(r.width) + 'x' + Math.round(r.height), title: p.querySelector('.gn-comic-title').textContent, strokes: p.querySelectorAll('.gn-ink path').length - 1, items: p.querySelectorAll('.gn-item').length, handles: p.querySelectorAll('.gn-handle').length }; })));
   await page.emulateMedia({ media: 'screen' });
   log('errors:', errors.length ? errors : 'none');
   await browser.close();

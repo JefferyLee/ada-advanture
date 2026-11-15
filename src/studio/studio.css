@@ -502,6 +502,12 @@ html[data-theme='crafty'] .gn-stage .gn-page { border-color: rgba(27, 27, 47, 0.
 /* Comic page. Everything inside is placed in page pixels. */
 .gn-comic { position: relative; }
 .gn-comic-inner { position: absolute; inset: 0; }
+.gn-comic-title {
+  position: absolute; left: 16px; right: 16px; top: 0; display: flex; align-items: center; justify-content: center;
+  letter-spacing: 2px; text-align: center;
+}
+.gn-comic-title .gn-text { line-height: 1.1; white-space: nowrap; min-width: 200px; }
+.gn-comic-title.is-selected { outline: 3px dashed var(--select); outline-offset: -1px; }
 .gn-cell { position: absolute; border: 3px solid var(--ink); background: #fff; overflow: hidden; }
 .gn-cell.is-selected { outline: 3px dashed var(--select); outline-offset: 3px; }
 .gn-cell-adds { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; }

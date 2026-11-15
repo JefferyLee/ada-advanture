@@ -6,6 +6,7 @@
 //   "name"            a character card's name
 //   "<boxId>.title"   a card box heading
 //   "<boxId>.body"    a card box's text
+//   "title"           a comic page's title
 //   "item:<id>"       a bubble, caption or sound word on a comic page
 
 export const PAGE_W = 900;
@@ -27,6 +28,7 @@ export const SIZES = ['s', 'm', 'l', 'xl'];
 // Pixel sizes depend on what the part is: a name is much bigger than body text.
 const SIZE_PX = {
   name: { s: 40, m: 50, l: 60, xl: 72 },
+  heading: { s: 28, m: 34, l: 42, xl: 50 },
   title: { s: 20, m: 24, l: 28, xl: 34 },
   body: { s: 17, m: 21, l: 26, xl: 32 },
   bubble: { s: 14, m: 17, l: 21, xl: 26 },
@@ -59,15 +61,17 @@ export const LAYOUTS = {
 
 const PANEL_MARGIN = 16;
 const PANEL_GAP = 12;
+// The page's title runs across the top; the panels start below it.
+export const TITLE_H = 60;
 
 // Where each panel of a layout sits on the page, in page pixels.
 export function panelRects(layoutId) {
   const { cols, rows, cells } = LAYOUTS[layoutId] || LAYOUTS.wide;
   const cw = (INNER_W - 2 * PANEL_MARGIN - (cols - 1) * PANEL_GAP) / cols;
-  const ch = (INNER_H - 2 * PANEL_MARGIN - (rows - 1) * PANEL_GAP) / rows;
+  const ch = (INNER_H - TITLE_H - PANEL_MARGIN - (rows - 1) * PANEL_GAP) / rows;
   return cells.map(([c, r, w, h]) => ({
     x: PANEL_MARGIN + c * (cw + PANEL_GAP),
-    y: PANEL_MARGIN + r * (ch + PANEL_GAP),
+    y: TITLE_H + r * (ch + PANEL_GAP),
     w: w * cw + (w - 1) * PANEL_GAP,
     h: h * ch + (h - 1) * PANEL_GAP,
   }));
@@ -161,11 +165,29 @@ export function newComicPage() {
   return {
     id: newId(),
     type: 'comic',
+    title: part('', 'bangers', 'l', 'black'),
     layout: 'wide',
     panels: LAYOUTS.wide.cells.map(newPanel),
     strokes: [], // pen lines drawn on the page: { id, color, size, points: [x, y, x, y, ...] }
     items: [], // bubbles, captions and sound words
   };
+}
+
+// Comic pages made before titles had their panels from the top of the page.
+// Their bubbles and pen lines move down with the panels, so everything stays
+// where it was put. Done when a book is opened; saved with the next change.
+export function withTitles(book) {
+  if (!book.pages.some((p) => p.type === 'comic' && !p.title)) return book;
+  const next = structuredClone(book);
+  const k = (INNER_H - TITLE_H - PANEL_MARGIN) / (INNER_H - 2 * PANEL_MARGIN);
+  const down = (y) => round(TITLE_H + (y - PANEL_MARGIN) * k);
+  for (const page of next.pages) {
+    if (page.type !== 'comic' || page.title) continue;
+    page.title = part('', 'bangers', 'l', 'black');
+    for (const it of page.items) it.y = Math.round(down(it.y));
+    for (const s of page.strokes) s.points = s.points.map((v, i) => (i % 2 ? down(v) : v));
+  }
+  return next;
 }
 
 // Switching layout keeps every panel's contents; panels a layout has no room
@@ -205,6 +227,7 @@ export function newBook(number) {
 export function getPart(page, target) {
   if (!target) return null;
   if (target.startsWith('item:')) return (page.items || []).find((it) => `item:${it.id}` === target) || null;
+  if (target === 'title') return page.type === 'comic' ? page.title || null : null;
   if (page.type !== 'card') return null;
   if (target === 'name') return page.name;
   const [boxId, role] = target.split('.');
@@ -215,6 +238,7 @@ export function getPart(page, target) {
 // What kind of text a target is, which decides how big each size is.
 export function roleOf(page, target) {
   if (target.startsWith('item:')) return getPart(page, target)?.kind === 'sound' ? 'sound' : 'bubble';
+  if (target === 'title') return 'heading';
   return target === 'name' ? 'name' : target.split('.')[1];
 }
 
@@ -229,10 +253,7 @@ export function partStyle(p, role) {
 }
 
 export function pageLabel(page) {
-  if (page.type === 'comic') {
-    const first = page.items.find((it) => it.text.trim());
-    return first ? first.text.trim() : 'Comic page';
-  }
+  if (page.type === 'comic') return page.title?.text.trim() || 'Comic page';
   return page.name.text.trim() || 'New character';
 }
 
@@ -244,7 +265,10 @@ export function describePage(page) {
     return {
       kind: 'comic_page',
       panels: LAYOUTS[page.layout].cells.length,
-      items: page.items.map((it) => ({ target: `item:${it.id}`, kind: it.kind, ...style(it) })),
+      items: [
+        { target: 'title', ...style(page.title) },
+        ...page.items.map((it) => ({ target: `item:${it.id}`, kind: it.kind, ...style(it) })),
+      ],
       boxes: [],
     };
   }

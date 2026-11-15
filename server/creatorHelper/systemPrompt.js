@@ -79,7 +79,7 @@ With each message the app sends you the current page: every piece of text on it 
 
 Each answer has two parts: "reply", the words Ada sees, and "actions", the changes to make to her page. Use an empty list of actions when you are only talking, asking a question or offering ideas.
 
-Every piece of text on the page comes with a target name in the page data. On a character card these are "name" for the character's name and, for each box, "<box id>.title" for its heading and "<box id>.body" for its text. On a comic page each speech bubble, thought bubble, caption and sound word has its own target. Copy targets exactly as given. The actions are:
+Every piece of text on the page comes with a target name in the page data. On a character card these are "name" for the character's name and, for each box, "<box id>.title" for its heading and "<box id>.body" for its text. On a comic page "title" is the page's title, and each speech bubble, thought bubble, caption and sound word has its own target. Copy targets exactly as given. The actions are:
 - set_text: replace the text of a target. Give the complete new text.
 - set_style: change a target's font, size or color. It always changes the whole target, never single words inside it. Set only the ones that should change and leave the others null. The fonts are "hand" (handwriting), "bangers" (bold comic capitals), "comic" (neat comic lettering) and "round" (round and friendly).
 - set_box_style: on a character card, change the frame around a box. Here the target is the box id.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import CardPage from './CardPage.jsx';
 import ColorStudio, { recolor } from './ColorStudio.jsx';
 import ComicPage from './ComicPage.jsx';
@@ -9,7 +9,7 @@ import PhotoPicker from './PhotoPicker.jsx';
 import {
   BOX_STYLES, COLORS, FONTS, INNER_H, INNER_W, LAYOUTS, PAGE_H, PAGE_W, PAINT_COLORS, PEN_SIZES, SIZES,
   applyActions, describePage, drawingLook, drawingVersions, getPart, newCardPage, newComicPage, newId, newItem,
-  pageLabel, panelRects, roleOf, sameLook, setLayout, shownVersion, wordsOnCard,
+  pageLabel, panelRects, roleOf, sameLook, setLayout, shownVersion, withTitles, wordsOnCard,
 } from './model.js';
 import { imageBlob, putImage } from './store.js';
 
@@ -259,6 +259,13 @@ function ComicSide({ page, selected, tool, pen, onTool, onPen, onAddItem, onStyl
         </div>
       )}
 
+      {tool === 'move' && selected === 'title' && (
+        <>
+          <div className="gn-panel-title">Page title</div>
+          <TextStyle part={page.title} onStyle={onStyle} />
+        </>
+      )}
+
       {tool === 'move' && item && (
         <>
           <div className="gn-panel-title">{ITEM_LABELS[item.kind]}</div>
@@ -296,7 +303,8 @@ function ComicSide({ page, selected, tool, pen, onTool, onPen, onAddItem, onStyl
 const holderOf = (page, target) =>
   (target === 'card' ? page : page.panels.find((p) => `panel:${p.id}` === target));
 
-export default function Editor({ book: initialBook, photos, saveLabel, saveOk, onChange, onPhotoUsed, onExit }) {
+export default function Editor({ book: stored, photos, saveLabel, saveOk, onChange, onPhotoUsed, onExit }) {
+  const initialBook = useMemo(() => withTitles(stored), [stored]);
   const { book, current, commit, update, undo, redo, canUndo, canRedo } = useHistory(initialBook, onChange);
   const [pageId, setPageId] = useState(initialBook.pages[0].id);
   const [selected, setSelected] = useState(null);
