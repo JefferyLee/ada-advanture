@@ -165,6 +165,12 @@ function Home({ playerName, onSelectGame }) {
           color="#f97316"
           onClick={() => onSelectGame('scratch')}
         />
+        <GameCard
+          title="🎨 Ada's Drawing Studio"
+          desc="Draw, color and make your own comics and character cards!"
+          color="#8b5cf6"
+          onClick={() => onSelectGame('studio')}
+        />
       </div>
       <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', maxWidth:'900px', width:'100%' }}>
         <ScoreTable title="🌲 Forest Adventure" scores={scores.forest} />
@@ -203,6 +209,10 @@ function App() {
   const handleSelectGame = (game) => {
     if (game === 'tower-defense') {
       window.location.href = '/tower-defense/';
+      return;
+    }
+    if (game === 'studio') {
+      window.location.href = '/studio/';
       return;
     }
     setSelectedGame(game);
