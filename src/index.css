@@ -19,6 +19,7 @@ body {
 .lovelace:hover { border-color: #fbbf24; }
 .lovelace img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #fbbf24; }
 .lovelace b { color: #fbbf24; }
-@media (min-width: 1300px) {
+/* Only where the margin beside the 868px-wide content has room for it (about 400px a side). */
+@media (min-width: 1680px) {
   .lovelace { position: fixed; left: 20px; bottom: 20px; z-index: 50; }
 }

@@ -55,10 +55,10 @@ function NamePrompt({ initial, onEnter, onCancel }) {
   );
 }
 
-// A game's top 10, under its card, edged in the game's color.
-function ScoreTable({ scores, showWave, color }) {
+// A game's top 10, in the bottom half of its box.
+function ScoreTable({ scores, showWave }) {
   return (
-    <div style={{ background:'#1f2937', border:'1px solid #374151', borderTop:`3px solid ${color}`, borderRadius:'12px', padding:'12px 10px 8px' }}>
+    <div style={{ padding:'12px 10px 8px' }}>
       <div style={{ fontSize:'.75rem', textTransform:'uppercase', letterSpacing:'1px', color:'#fbbf24', margin:'0 0 6px 6px', fontWeight:'bold' }}>🏆 Top 10</div>
       {/* Fixed columns, so a long name or place is cut short instead of pushing out of the card. */}
       <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
@@ -277,10 +277,7 @@ function Home({ onSelectGame }) {
       <div style={{ display:'flex', flexDirection:'column', gap:'24px', width:'100%', maxWidth:'868px' }}>
         <Section title="Game Studio">
           {GAMES.map((g) => (
-            <div key={g.id} style={{ width:'260px', display:'flex', flexDirection:'column', gap:'14px' }}>
-              <GameCard title={g.title} desc={g.desc} color={g.color} onClick={() => onSelectGame(g.id)} />
-              <ScoreTable scores={scores[g.id]} showWave={g.id === 'tower-defense'} color={g.color} />
-            </div>
+            <GameBox key={g.id} game={g} scores={scores[g.id]} onPlay={() => onSelectGame(g.id)} />
           ))}
         </Section>
         <div style={{ display:'flex', gap:'24px', flexWrap:'wrap' }}>
@@ -320,43 +317,58 @@ function Section({ title, note, grow, children }) {
   );
 }
 
-// A studio's card: the way in (needs the PIN) and, under it, the public page
-// with what Ada has published there.
+// A studio, laid out like a game's box but straight in its section: the top
+// opens it (needs the PIN), and under a line, its public page with what Ada
+// has published there.
 function StudioCard({ icon, title, desc, color, onClick, readHref, readLabel }) {
   return (
-    <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'10px' }}>
+    <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'14px' }}>
       <button onClick={onClick} style={{
-        background:'#1f2937', border:`2px solid ${color}`, borderRadius:'16px', padding:'16px 18px', cursor:'pointer',
-        display:'flex', alignItems:'center', gap:'14px', textAlign:'left', transition:'transform .15s, box-shadow .15s',
+        background:'transparent', border:'none', borderRadius:'14px', padding:'10px 12px', cursor:'pointer',
+        display:'flex', alignItems:'center', gap:'16px', textAlign:'left', transition:'background .15s',
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${color}44`; }}
-      onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}
+      onMouseEnter={e => { e.currentTarget.style.background=`${color}22`; }}
+      onMouseLeave={e => { e.currentTarget.style.background='transparent'; }}
       >
-        <span style={{ fontSize:'2.6rem', lineHeight:1 }}>{icon}</span>
-        <span style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
-          <span style={{ fontSize:'1.15rem', fontWeight:'bold', color:'#e5e7eb' }}>{title} 🔒</span>
-          <span style={{ fontSize:'.8rem', color:'#9ca3af', lineHeight:'1.4' }}>{desc}</span>
+        <span style={{ fontSize:'2.8rem', lineHeight:1 }}>{icon}</span>
+        <span style={{ flex:1, display:'flex', flexDirection:'column', gap:'4px' }}>
+          <span style={{ fontSize:'1.2rem', fontWeight:'bold', color:'#e5e7eb' }}>{title} 🔒</span>
+          <span style={{ fontSize:'.82rem', color:'#9ca3af', lineHeight:'1.4' }}>{desc}</span>
+        </span>
+        <span style={{ padding:'4px 16px', borderRadius:'999px', background:color, color:'#fff', fontWeight:'bold', fontSize:'.85rem', whiteSpace:'nowrap' }}>
+          ▶ Open
         </span>
       </button>
-      <a href={readHref} style={{ display:'block', textAlign:'center', padding:'8px 12px', borderRadius:'999px', background:color,
-        color:'#fff', fontWeight:'bold', fontSize:'.9rem', textDecoration:'none' }}>{readLabel} →</a>
+      <div style={{ height:'1px', background:'#374151' }} />
+      <a href={readHref} style={{ display:'block', textAlign:'center', padding:'8px 12px', borderRadius:'999px', border:`2px solid ${color}`,
+        color:'#e5e7eb', fontWeight:'bold', fontSize:'.9rem', textDecoration:'none' }}>{readLabel} →</a>
     </div>
   );
 }
 
-function GameCard({ title, desc, color, onClick }) {
+// One game: the top half plays it (title, what it is, Play), and under a line
+// its top 10, which is only for looking at.
+function GameBox({ game, scores, onPlay }) {
+  const { title, desc, color } = game;
   return (
-    <button onClick={onClick} style={{
-      background:'#1f2937', border:`2px solid ${color}`, borderRadius:'16px',
-      padding:'28px 24px', width:'260px', minHeight:'160px', cursor:'pointer', textAlign:'left',
-      transition:'transform .15s, box-shadow .15s',
-    }}
-    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${color}44`; }}
-    onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}
-    >
-      <div style={{ fontSize:'1.3rem', fontWeight:'bold', color:'#e5e7eb', marginBottom:'8px' }}>{title}</div>
-      <div style={{ fontSize:'.85rem', color:'#9ca3af', lineHeight:'1.5' }}>{desc}</div>
-    </button>
+    <div style={{ width:'260px', boxSizing:'border-box', display:'flex', flexDirection:'column', background:'#1f2937', border:`2px solid ${color}`,
+      borderRadius:'16px', overflow:'hidden' }}>
+      <button onClick={onPlay} style={{
+        background:'transparent', border:'none', padding:'22px 22px 18px', minHeight:'170px', cursor:'pointer', textAlign:'left',
+        display:'flex', flexDirection:'column', gap:'8px', transition:'background .15s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background=`${color}22`; }}
+      onMouseLeave={e => { e.currentTarget.style.background='transparent'; }}
+      >
+        <span style={{ fontSize:'1.3rem', fontWeight:'bold', color:'#e5e7eb' }}>{title}</span>
+        <span style={{ fontSize:'.85rem', color:'#9ca3af', lineHeight:'1.5', flex:1 }}>{desc}</span>
+        <span style={{ alignSelf:'flex-start', padding:'4px 16px', borderRadius:'999px', background:color, color:'#fff', fontWeight:'bold', fontSize:'.85rem' }}>
+          ▶ Play
+        </span>
+      </button>
+      <div style={{ height:'1px', background:'#374151', margin:'0 14px' }} />
+      <ScoreTable scores={scores} showWave={game.id === 'tower-defense'} />
+    </div>
   );
 }
 
