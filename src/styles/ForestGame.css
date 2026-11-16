@@ -6,7 +6,6 @@ body {
     align-items: flex-start;
     min-height: 100vh;
     background-color: #1a1a2e;
-    touch-action: none;
     -webkit-user-select: none;  
     -moz-user-select: none;    
     -ms-user-select: none;      
@@ -17,6 +16,9 @@ body {
     position: relative;
     width: 800px;
     height: 400px;
+    /* Touches on the game play it instead of scrolling. Only here: on the
+       body it stopped every page of the site from scrolling on phones. */
+    touch-action: none;
 }
 
 .game-canvas {
