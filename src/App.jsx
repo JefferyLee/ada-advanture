@@ -144,39 +144,56 @@ function Home({ playerName, onSelectGame }) {
         Ada's Studio
       </h1>
       <p style={{ color:'#9ca3af', fontSize:'.9rem' }}>
-        {playerName ? <>Welcome, <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{playerName}</span>! Choose a game:</> : 'Choose a game:'}
+        {playerName ? <>Welcome, <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{playerName}</span>! What would you like to do?</> : 'What would you like to do?'}
       </p>
-      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center' }}>
-        <GameCard
-          title="🌲 Forest Adventure"
-          desc="Help Ada dodge trees and collect mushrooms in the enchanted forest!"
-          color="#16a34a"
-          onClick={() => onSelectGame('forest')}
-        />
-        <GameCard
-          title="⚔ Tower Defense"
-          desc="Build towers and defend your kingdom against 20 waves of enemies!"
-          color="#6366f1"
-          onClick={() => onSelectGame('tower-defense')}
-        />
-        <GameCard
-          title="🐱 Scratch Game"
-          desc="A game made in Scratch. Click the green flag to start!"
-          color="#f97316"
-          onClick={() => onSelectGame('scratch')}
-        />
-        <GameCard
-          title="🎨 Ada's Drawing Studio"
-          desc="Draw, color and make your own comics and character cards!"
-          color="#8b5cf6"
-          onClick={() => onSelectGame('studio')}
-        />
+      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', alignItems:'stretch' }}>
+        <Section title="Ada's Game Studio">
+          <GameCard
+            title="🌲 Forest Adventure"
+            desc="Help Ada dodge trees and collect mushrooms in the enchanted forest!"
+            color="#16a34a"
+            onClick={() => onSelectGame('forest')}
+          />
+          <GameCard
+            title="⚔ Tower Defense"
+            desc="Build towers and defend your kingdom against 20 waves of enemies!"
+            color="#6366f1"
+            onClick={() => onSelectGame('tower-defense')}
+          />
+          <GameCard
+            title="🐱 Scratch Game"
+            desc="A game made in Scratch. Click the green flag to start!"
+            color="#f97316"
+            onClick={() => onSelectGame('scratch')}
+          />
+        </Section>
+        <Section title="Ada's Drawing Studio">
+          <GameCard
+            title="🎨 Start Drawing"
+            desc="Draw, color and make your own comics and character cards!"
+            color="#8b5cf6"
+            onClick={() => onSelectGame('studio')}
+          />
+        </Section>
       </div>
       <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', maxWidth:'900px', width:'100%' }}>
         <ScoreTable title="🌲 Forest Adventure" scores={scores.forest} />
         <ScoreTable title="⚔ Tower Defense" scores={scores['tower-defense']} showWave />
       </div>
     </div>
+  );
+}
+
+// A framed group of cards with its name on top: the games, the drawing studio.
+function Section({ title, children }) {
+  return (
+    <section style={{ display:'flex', flexDirection:'column', border:'2px solid #374151', borderRadius:'20px',
+      padding:'18px 18px 22px', background:'#ffffff06' }}>
+      <h2 style={{ fontSize:'1rem', color:'#fbbf24', letterSpacing:'2px', textTransform:'uppercase', margin:'0 0 16px', textAlign:'center' }}>
+        {title}
+      </h2>
+      <div style={{ flex:1, display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', alignItems:'stretch' }}>{children}</div>
+    </section>
   );
 }
 
