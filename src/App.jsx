@@ -273,7 +273,7 @@ function Home({ playerName, onSelectGame }) {
             </div>
           ))}
         </Section>
-        <Section title="Drawing Studio">
+        <Section title="Drawing Studio" note="🔒 You need the PIN to get in.">
           <StudioCard onClick={() => onSelectGame('studio')} />
         </Section>
       </div>
@@ -281,8 +281,9 @@ function Home({ playerName, onSelectGame }) {
   );
 }
 
-// A framed group of cards with its name on top: the games, the drawing studio.
-function Section({ title, children }) {
+// A framed group of cards with its name on top (and a short note under them):
+// the games, the drawing studio.
+function Section({ title, note, children }) {
   return (
     <section style={{ display:'flex', flexDirection:'column', border:'2px solid #374151', borderRadius:'20px',
       padding:'18px 18px 22px', background:'#ffffff06' }}>
@@ -290,6 +291,7 @@ function Section({ title, children }) {
         {title}
       </h2>
       <div style={{ flex:1, display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', alignItems:'stretch' }}>{children}</div>
+      {note && <p style={{ margin:'12px 0 0', color:'#9ca3af', fontSize:'.8rem', textAlign:'center' }}>{note}</p>}
     </section>
   );
 }
