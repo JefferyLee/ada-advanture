@@ -3,8 +3,8 @@ import ForestGame from './components/ForestGame';
 import OnlineChat from './components/OnlineChat';
 
 /* ── Shared styles ──────────────────────────────────────────────────────────── */
-const thStyle = { padding:'6px 10px', borderBottom:'1px solid #374151', textAlign:'left', fontSize:'.75rem', color:'#9ca3af', textTransform:'uppercase' };
-const tdStyle = { padding:'5px 10px', fontSize:'.82rem', color:'#d1d5db' };
+const thStyle = { padding:'5px 6px', borderBottom:'1px solid #374151', textAlign:'left', fontSize:'.68rem', color:'#9ca3af', textTransform:'uppercase' };
+const tdStyle = { padding:'4px 6px', fontSize:'.8rem', color:'#d1d5db', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' };
 
 /* ── Name popup: floats over the home page; nothing below works until a name is given ── */
 function NamePrompt({ onEnter }) {
@@ -45,11 +45,20 @@ function NamePrompt({ onEnter }) {
   );
 }
 
-function ScoreTable({ title, scores, showWave }) {
+// A game's top 10, under its card, edged in the game's color.
+function ScoreTable({ scores, showWave, color }) {
   return (
-    <div style={{ background:'#1f2937', border:'1px solid #374151', borderRadius:'12px', padding:'16px', minWidth:'280px', flex:'1' }}>
-      <div style={{ fontSize:'.8rem', textTransform:'uppercase', letterSpacing:'1px', color:'#fbbf24', marginBottom:'10px', fontWeight:'bold' }}>{title}</div>
-      <table style={{ width:'100%', borderCollapse:'collapse' }}>
+    <div style={{ background:'#1f2937', border:'1px solid #374151', borderTop:`3px solid ${color}`, borderRadius:'12px', padding:'12px 10px 8px' }}>
+      <div style={{ fontSize:'.75rem', textTransform:'uppercase', letterSpacing:'1px', color:'#fbbf24', margin:'0 0 6px 6px', fontWeight:'bold' }}>🏆 Top 10</div>
+      {/* Fixed columns, so a long name or place is cut short instead of pushing out of the card. */}
+      <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
+        <colgroup>
+          <col style={{ width:'30px' }} />
+          <col />
+          <col style={{ width:'50px' }} />
+          {showWave && <col style={{ width:'40px' }} />}
+          <col style={{ width: showWave ? '58px' : '72px' }} />
+        </colgroup>
         <thead>
           <tr>
             <th style={thStyle}>#</th>
@@ -63,10 +72,10 @@ function ScoreTable({ title, scores, showWave }) {
           {scores.map((r, i) => (
             <tr key={i}>
               <td style={{ ...tdStyle, color: i === 0 ? '#fbbf24' : i === 1 ? '#d1d5db' : i === 2 ? '#b87333' : '#6b7280' }}>{i + 1}</td>
-              <td style={tdStyle}>{r.name}</td>
+              <td style={tdStyle} title={r.name}>{r.name}</td>
               <td style={{ ...tdStyle, color:'#fbbf24', fontWeight:'bold' }}>{r.score}</td>
               {showWave && <td style={tdStyle}>{r.wave || '-'}</td>}
-              <td style={{ ...tdStyle, color:'#6b7280', fontSize:'.75rem' }}>{r.location}</td>
+              <td style={{ ...tdStyle, color:'#6b7280', fontSize:'.72rem' }} title={r.location}>{r.location}</td>
             </tr>
           ))}
           {scores.length === 0 && (
@@ -226,7 +235,13 @@ function ScratchGame({ playerName }) {
   );
 }
 
-/* ── Home: the games and the scoreboards (the chat sits at the bottom) ───── */
+/* ── Home: the games with their leaderboards, the drawing studio (the chat sits at the bottom) ── */
+const GAMES = [
+  { id: 'forest', title: '🌲 Forest Adventure', desc: 'Help Ada dodge trees and collect mushrooms in the enchanted forest!', color: '#16a34a' },
+  { id: 'tower-defense', title: '⚔ Tower Defense', desc: 'Build towers and defend your kingdom against 20 waves of enemies!', color: '#6366f1' },
+  { id: 'scratch', title: '🐱 Scratch Game', desc: 'A game made in Scratch. Click the green flag to start!', color: '#f97316' },
+];
+
 function Home({ playerName, onSelectGame }) {
   const [scores, setScores] = useState({ forest: [], 'tower-defense': [], scratch: [] });
 
@@ -242,47 +257,25 @@ function Home({ playerName, onSelectGame }) {
   }, []);
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'28px', padding:'40px 20px', paddingBottom:'240px' }}>
-      <h1 style={{ fontSize:'2.4rem', color:'#fbbf24', letterSpacing:'3px', textTransform:'uppercase', textShadow:'0 0 30px #fbbf2466' }}>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'20px', padding:'24px 20px', paddingBottom:'240px' }}>
+      <h1 style={{ fontSize:'2.4rem', color:'#fbbf24', letterSpacing:'3px', textTransform:'uppercase', textShadow:'0 0 30px #fbbf2466', margin:0 }}>
         Ada's Studio
       </h1>
-      <p style={{ color:'#9ca3af', fontSize:'.9rem' }}>
+      <p style={{ color:'#9ca3af', fontSize:'.9rem', margin:0 }}>
         {playerName ? <>Welcome, <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{playerName}</span>! What would you like to do?</> : 'What would you like to do?'}
       </p>
       <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', alignItems:'stretch' }}>
         <Section title="Ada's Game Studio">
-          <GameCard
-            title="🌲 Forest Adventure"
-            desc="Help Ada dodge trees and collect mushrooms in the enchanted forest!"
-            color="#16a34a"
-            onClick={() => onSelectGame('forest')}
-          />
-          <GameCard
-            title="⚔ Tower Defense"
-            desc="Build towers and defend your kingdom against 20 waves of enemies!"
-            color="#6366f1"
-            onClick={() => onSelectGame('tower-defense')}
-          />
-          <GameCard
-            title="🐱 Scratch Game"
-            desc="A game made in Scratch. Click the green flag to start!"
-            color="#f97316"
-            onClick={() => onSelectGame('scratch')}
-          />
+          {GAMES.map((g) => (
+            <div key={g.id} style={{ width:'260px', display:'flex', flexDirection:'column', gap:'14px' }}>
+              <GameCard title={g.title} desc={g.desc} color={g.color} onClick={() => onSelectGame(g.id)} />
+              <ScoreTable scores={scores[g.id]} showWave={g.id === 'tower-defense'} color={g.color} />
+            </div>
+          ))}
         </Section>
         <Section title="Ada's Drawing Studio">
-          <GameCard
-            title="🎨 Start Drawing"
-            desc="Draw, color and make your own comics and character cards!"
-            color="#8b5cf6"
-            onClick={() => onSelectGame('studio')}
-          />
+          <StudioCard onClick={() => onSelectGame('studio')} />
         </Section>
-      </div>
-      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', maxWidth:'1192px', width:'100%' }}>
-        <ScoreTable title="🌲 Forest Adventure" scores={scores.forest} />
-        <ScoreTable title="⚔ Tower Defense" scores={scores['tower-defense']} showWave />
-        <ScoreTable title="🐱 Scratch Game" scores={scores.scratch} />
       </div>
     </div>
   );
@@ -301,11 +294,33 @@ function Section({ title, children }) {
   );
 }
 
+// The drawing studio's card: as tall as the games beside it, so it gets a big picture.
+function StudioCard({ onClick }) {
+  const color = '#8b5cf6';
+  return (
+    <button onClick={onClick} style={{
+      background:'#1f2937', border:`2px solid ${color}`, borderRadius:'16px', padding:'28px 24px', width:'260px', cursor:'pointer',
+      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'14px', textAlign:'center',
+      transition:'transform .15s, box-shadow .15s',
+    }}
+    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${color}44`; }}
+    onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}
+    >
+      <div style={{ fontSize:'4.5rem', lineHeight:1 }}>🎨</div>
+      <div style={{ fontSize:'1.3rem', fontWeight:'bold', color:'#e5e7eb' }}>Start Drawing</div>
+      <div style={{ fontSize:'.85rem', color:'#9ca3af', lineHeight:'1.5' }}>Draw, color and make your own comics and character cards!</div>
+      <div style={{ marginTop:'6px', padding:'8px 18px', borderRadius:'999px', background:color, color:'#fff', fontWeight:'bold', fontSize:'.9rem' }}>
+        Open the Studio →
+      </div>
+    </button>
+  );
+}
+
 function GameCard({ title, desc, color, onClick }) {
   return (
     <button onClick={onClick} style={{
       background:'#1f2937', border:`2px solid ${color}`, borderRadius:'16px',
-      padding:'28px 24px', width:'260px', cursor:'pointer', textAlign:'left',
+      padding:'28px 24px', width:'260px', minHeight:'160px', cursor:'pointer', textAlign:'left',
       transition:'transform .15s, box-shadow .15s',
     }}
     onMouseEnter={e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${color}44`; }}
