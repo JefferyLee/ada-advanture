@@ -112,6 +112,21 @@ function ScoreTable({ title, scores, showWave }) {
   );
 }
 
+/* ── Scratch game: a project on scratch.mit.edu, played in Scratch's own player ── */
+const SCRATCH_PROJECT = '1439703364';
+
+function ScratchGame() {
+  return (
+    <iframe
+      src={`https://scratch.mit.edu/projects/${SCRATCH_PROJECT}/embed`}
+      title="Scratch Game"
+      allowFullScreen
+      style={{ width:'min(800px, calc(100vw - 40px), calc((100vh - 300px) * 485 / 402))', aspectRatio:'485 / 402',
+        border:'none', borderRadius:'12px', background:'#1f2937' }}
+    />
+  );
+}
+
 /* ── Game Hub: choose a game ──────────────────────────────────────────────── */
 function GameHub({ playerName, onSelectGame }) {
   return (
@@ -135,6 +150,12 @@ function GameHub({ playerName, onSelectGame }) {
           desc="Build towers and defend your kingdom against 20 waves of enemies!"
           color="#6366f1"
           onClick={() => onSelectGame('tower-defense')}
+        />
+        <GameCard
+          title="🐱 Scratch Game"
+          desc="A game made in Scratch. Click the green flag to start!"
+          color="#f97316"
+          onClick={() => onSelectGame('scratch')}
         />
       </div>
     </div>
@@ -190,7 +211,7 @@ function App() {
     );
   }
 
-  // Playing Forest game — game + chat
+  // Playing Forest or the Scratch game — game + chat
   return (
     <div>
       <div style={{ textAlign:'left', padding:'8px 20px' }}>
@@ -203,7 +224,7 @@ function App() {
         </span>
       </div>
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'center', minHeight:'calc(100vh - 220px)', paddingTop:'8px' }}>
-        <ForestGame playerName={playerName} />
+        {selectedGame === 'scratch' ? <ScratchGame /> : <ForestGame playerName={playerName} />}
         <OnlineChat playerName={playerName} />
       </div>
     </div>
