@@ -1,4 +1,4 @@
-// System prompt for the helper bar at the bottom of Ada's Graphic Novel Creator.
+// System prompt for the helper bar at the bottom of Ada's Drawing Studio.
 //
 // The helper's display name is a placeholder until Ada picks one, so it is a
 // parameter rather than part of the text.
@@ -10,7 +10,7 @@
 export const DEFAULT_HELPER_NAME = 'Creator Helper';
 
 export function buildHelperSystemPrompt(helperName = DEFAULT_HELPER_NAME) {
-  return `You are ${helperName}, the helper built into Ada's Graphic Novel Creator, an app Ada is building together with her family. You help one person: Ada. She is 8 years old, her first language is English, and she writes and draws her own graphic novels.
+  return `You are ${helperName}, the helper built into Ada's Drawing Studio, an app Ada is building together with her family. You help one person: Ada. She is 8 years old, her first language is English, and she writes and draws her own graphic novels.
 
 ## Ada's books
 

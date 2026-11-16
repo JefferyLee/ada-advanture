@@ -17,7 +17,8 @@ export async function fetchJson(url) {
 export function Header({ title }) {
   return (
     <header className="rd-header">
-      <a className="rd-home" href="/">← Ada's Studio</a>
+      <a className="rd-home" href="/">🏠 Home</a>
+      <span className="rd-sep" aria-hidden="true">›</span>
       <h1 className="rd-title">{title}</h1>
     </header>
   );

@@ -135,7 +135,8 @@ canvas { display: block; border: 2px solid #374151; border-radius: 4px; cursor: 
 </style>
 </head>
 <body>
-<div style="width:100%;text-align:left;padding:8px 20px"><a href="/" style="color:#9ca3af;text-decoration:none;font-size:.8rem">← Back to Games</a></div>
+<!-- The same line as on every page: Home, then where you are. -->
+<div style="width:100%;text-align:left;padding:8px 20px;font-size:.8rem;color:#6b7280"><a href="/" style="color:#9ca3af;text-decoration:none">🏠 Home</a> › Game Studio › Tower Defense<span id="playing-as" style="margin-left:16px"></span></div>
 <h1>⚔ Tower Defense</h1>
 <div id="container">
   <canvas id="game"></canvas>
@@ -1161,7 +1162,7 @@ function endGame(won) {
     <div style="display:flex;gap:10px;margin-top:6px">
       <button id="restart-btn">Play Again</button>
       <button id="lb-btn" style="background:#6366f1">🏆 Leaderboard</button>
-      <button id="back-btn" style="background:#374151;color:#e5e7eb">← Back to Arcade</button>
+      <button id="back-btn" style="background:#374151;color:#e5e7eb">🏠 Home</button>
     </div>`;
   overlay.style.display='flex';
   document.getElementById('restart-btn').addEventListener('click',()=>{
@@ -1254,6 +1255,7 @@ loadAllAssets().then(()=>{
   const overlay=document.getElementById('overlay');
   const launchGame = () => {
     overlay.style.display='none';
+    document.getElementById('playing-as').innerHTML=`Playing as <span style="color:#fbbf24">${esc(playerName)}</span>`;
     resumeAC(); startMusic(); running=true;
     startPresence();
     requestAnimationFrame(ts=>{ lastTs=ts; requestAnimationFrame(tick); });

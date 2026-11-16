@@ -517,7 +517,7 @@ export default function Editor({ book: stored, photos, saveLabel, saveOk, onChan
     <div className="gn-app">
       <header className="gn-topbar gn-work-bar">
         <button className="gn-bar-btn" onClick={onExit}><Icon name="books" /> My Books</button>
-        <span className="gn-wordmark">Ada's Graphic Novel Creator</span>
+        <span className="gn-wordmark">Ada's Drawing Studio</span>
         <span className="gn-episode gn-grow">
           <label htmlFor="gn-book-title">Episode {book.number}:</label>
           <input id="gn-book-title" value={book.title} maxLength={60} placeholder="Name your episode"

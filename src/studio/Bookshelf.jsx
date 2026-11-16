@@ -35,8 +35,9 @@ export default function Bookshelf({
   return (
     <div className="gn-app">
       <header className="gn-topbar">
+        <a className="gn-bar-btn gn-home" href="/">🏠 Home</a>
         {avatar && <img className="gn-avatar" src={avatar} alt="Ada" />}
-        <span className="gn-wordmark gn-grow">Ada's Graphic Novel Creator</span>
+        <span className="gn-wordmark gn-grow">Ada's Drawing Studio</span>
         <span className="gn-saved" role="status">
           {saveOk && <Icon name="check" size={20} stroke={2.8} />} {saveLabel}
         </span>

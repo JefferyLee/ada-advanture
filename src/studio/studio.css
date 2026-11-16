@@ -1,4 +1,4 @@
-/* Ada's Graphic Novel Creator.
+/* Ada's Drawing Studio.
 
    Two looks, each with a light and a dark version that follow the system:
      simple  comic book: thick ink outlines, hard offset shadows
@@ -676,6 +676,9 @@ html[data-theme='crafty'] .gn-modal-head .gn-h2 { color: #2e2417; }
   font-size: 24px; line-height: 1.5;
 }
 .gn-write-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* The way back to the home page, first in the bar on the studio's top pages. */
+.gn-home { text-decoration: none; color: var(--bar-fg); font-family: inherit; font-size: inherit; }
 
 /* Ada's portrait at the top of the bookshelf. */
 .gn-avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 3px solid var(--wordmark); flex: 0 0 auto; }

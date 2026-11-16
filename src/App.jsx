@@ -412,12 +412,14 @@ function App() {
   // Playing a game: Forest or the Scratch game, the chat bubble in the corner.
   return (
     <div>
-      <div style={{ textAlign:'left', padding:'8px 20px' }}>
-        <a href="#" onClick={e => { e.preventDefault(); setSelectedGame(null); }}
-          style={{ color:'#9ca3af', textDecoration:'none', fontSize:'.8rem' }}>
-          ← Back to Games
+      {/* The same line as on every page: Home, then where you are. */}
+      <div style={{ textAlign:'left', padding:'8px 20px', fontSize:'.8rem', color:'#6b7280' }}>
+        <a href="/" onClick={e => { e.preventDefault(); setSelectedGame(null); }}
+          style={{ color:'#9ca3af', textDecoration:'none' }}>
+          🏠 Home
         </a>
-        <span style={{ color:'#6b7280', fontSize:'.8rem', marginLeft:'16px' }}>
+        {' › Game Studio › '}{selectedGame === 'scratch' ? 'Scratch Game' : 'Forest Adventure'}
+        <span style={{ marginLeft:'16px' }}>
           Playing as <span style={{ color:'#fbbf24' }}>{playerName}</span>
         </span>
       </div>

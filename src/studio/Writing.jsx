@@ -26,6 +26,7 @@ export default function Writing({ entries, openId, saveLabel, saveOk, onOpen, on
   return (
     <div className="gn-app">
       <header className="gn-topbar">
+        <a className="gn-bar-btn gn-home" href="/">🏠 Home</a>
         <span className="gn-wordmark gn-grow">Ada's Writing Studio</span>
         <span className="gn-saved" role="status">
           {saveOk && <Icon name="check" size={20} stroke={2.8} />} {saveLabel}

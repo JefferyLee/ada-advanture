@@ -37,7 +37,7 @@ function ensureTries(db) {
 // The page that asks for the PIN. Its notes are fixed text, never anything sent in.
 const page = (status, note = '') => new Response(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ada's Graphic Novel Creator</title>
+<title>Ada's Studio</title>
 <style>
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f3eefe;
     font-family: ui-rounded, 'Avenir Next', system-ui, sans-serif; color: #1b1b2f; }
@@ -51,8 +51,9 @@ const page = (status, note = '') => new Response(`<!doctype html>
   button { font: inherit; font-size: 20px; font-weight: 700; padding: 10px 28px; border: 3px solid #1b1b2f;
     border-radius: 12px; background: #ffd23f; cursor: pointer; }
   .note { color: #c22b2b; font-weight: 700; }
+  .home { position: fixed; left: 16px; top: 14px; color: #1b1b2f; font-weight: 700; text-decoration: none; }
 </style></head>
-<body><form method="post">
+<body><a class="home" href="/">🏠 Home</a><form method="post">
   <h1>Secret PIN</h1>
   <p>Type the studio's secret PIN to come in.</p>
   <input name="pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" aria-label="PIN" autofocus required>
