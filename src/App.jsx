@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ForestGame from './components/ForestGame';
 import OnlineChat from './components/OnlineChat';
 
@@ -78,34 +78,134 @@ function ScoreTable({ title, scores, showWave }) {
   );
 }
 
-/* ── Scratch game: a project on scratch.mit.edu, played in Scratch's own player ── */
+/* ── Scratch game: a project on scratch.mit.edu, run in TurboWarp's player so the page can read its score ── */
 const SCRATCH_PROJECT = '1439703364';
+const SCAFFOLDING = 'https://cdn.jsdelivr.net/npm/@turbowarp/packager@3.14.0/dist/scaffolding/scaffolding-min.js';
 const panelText = { color:'#d1d5db', fontSize:'.9rem', lineHeight:'1.55', whiteSpace:'pre-wrap', overflowWrap:'anywhere', margin:0 };
 const panelHeading = { fontSize:'.75rem', textTransform:'uppercase', letterSpacing:'1px', color:'#fbbf24', margin:'18px 0 8px' };
+const barButton = { display:'flex', alignItems:'center', justifyContent:'center', width:'40px', height:'36px', border:'1px solid #374151',
+  borderRadius:'8px', background:'#111827', cursor:'pointer', fontSize:'1.2rem' };
+
+// The player script is big (about 2 MB), so it is only loaded when the game is opened.
+let scaffoldingLoaded = null;
+function loadScaffolding() {
+  if (!scaffoldingLoaded) {
+    scaffoldingLoaded = new Promise((resolve, reject) => {
+      const script = Object.assign(document.createElement('script'), { src: SCAFFOLDING, onload: resolve });
+      script.onerror = () => { scaffoldingLoaded = null; reject(new Error('player did not load')); };
+      document.head.appendChild(script);
+    });
+  }
+  return scaffoldingLoaded;
+}
 
 // As big as the window allows, with the project's Instructions and Notes and
-// Credits beside it (below it when there is no room).
-function ScratchGame() {
+// Credits beside it (below it when there is no room). A round starts with the
+// green flag and ends when the project stops, by itself (game over) or with the
+// stop sign; then its "score" variable goes on the Scratch Game leaderboard.
+function ScratchGame({ playerName }) {
   const [info, setInfo] = useState(null);
+  const [state, setState] = useState('loading'); // loading | ready | failed
+  const [saved, setSaved] = useState(null); // the last score saved
+  const stageRef = useRef(null);
+  const playerRef = useRef(null);
 
   useEffect(() => {
     fetch('/api/scratch').then(r => (r.ok ? r.json() : null)).then(setInfo).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    let player = null;
+    let inRound = false;
+    // Saves the score of the round that just ended, if the project has a "score" and it isn't 0.
+    const endRound = () => {
+      if (!inRound) return;
+      inRound = false;
+      const score = Number(player.getVariable('score'));
+      if (!Number.isFinite(score) || score === 0) return;
+      fetch('/api/scores', {
+        method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: playerName, score: Math.round(score), game: 'scratch' }),
+      }).then(r => { if (r.ok && alive) setSaved(Math.round(score)); }).catch(() => {});
+    };
+    (async () => {
+      await loadScaffolding();
+      if (!alive) return;
+      player = new window.Scaffolding.Scaffolding();
+      player.width = 480;
+      player.height = 360;
+      player.resizeMode = 'preserve-ratio';
+      player.setup();
+      player.appendTo(stageRef.current);
+      player.setUsername(playerName);
+      const { storage } = player;
+      storage.addWebStore(
+        [storage.AssetType.ImageVector, storage.AssetType.ImageBitmap, storage.AssetType.Sound],
+        (asset) => `https://assets.scratch.mit.edu/internalapi/asset/${asset.assetId}.${asset.dataFormat}/get/`,
+      );
+      player.vm.runtime.on('PROJECT_START', () => { inRound = true; });
+      player.vm.runtime.on('PROJECT_RUN_STOP', endRound);
+      const res = await fetch('/api/scratch?project');
+      if (!res.ok) throw new Error('project did not load');
+      await player.loadProject(await res.arrayBuffer());
+      if (!alive) return;
+      playerRef.current = player;
+      setState('ready');
+    })().catch(() => { if (alive) setState('failed'); });
+    return () => {
+      alive = false;
+      if (!player) return;
+      endRound(); // leaving in the middle of a round still saves it
+      player.vm.stopAll();
+      player.vm.stop();
+      player.audioEngine?.audioContext?.close();
+    };
+  }, [playerName]);
+
+  // The player only takes keys while nothing on the page has focus (and then
+  // keeps space and the arrows from scrolling), so the buttons let go of it;
+  // otherwise space would also press the green flag again.
+  const started = useRef(false);
+  const greenFlag = () => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (started.current) player.greenFlag();
+    else { started.current = true; player.start(); }
+    document.activeElement?.blur();
+  };
+  const stop = () => {
+    playerRef.current?.stopAll();
+    document.activeElement?.blur();
+  };
+
   return (
     <div style={{ display:'flex', flexWrap:'wrap', gap:'20px', justifyContent:'center', alignItems:'flex-start' }}>
-      <iframe
-        src={`https://scratch.mit.edu/projects/${SCRATCH_PROJECT}/embed`}
-        title="Scratch Game"
-        allowFullScreen
-        // The stage is 4:3 under Scratch's 52px bar of buttons.
-        style={{ '--w':'min(calc(100vw - 40px), calc((100vh - 132px) * 4 / 3))', width:'var(--w)', height:'calc(var(--w) * 3 / 4 + 52px)',
-          border:'none', borderRadius:'12px', background:'#1f2937' }}
-      />
+      {/* The stage is 4:3 under a 52px bar with the green flag and the stop sign. */}
+      <div style={{ '--w':'min(calc(100vw - 40px), calc((100vh - 132px) * 4 / 3))', width:'var(--w)',
+        border:'1px solid #374151', borderRadius:'12px', background:'#1f2937', overflow:'hidden' }}>
+        <div style={{ height:'52px', display:'flex', alignItems:'center', gap:'8px', padding:'0 10px', boxSizing:'border-box' }}>
+          <button aria-label="Green flag" title="Start" onClick={greenFlag} disabled={state !== 'ready'} style={barButton}>
+            <span style={{ color:'#4ade80' }}>⚑</span>
+          </button>
+          <button aria-label="Stop" title="Stop" onClick={stop} disabled={state !== 'ready'} style={barButton}>
+            <span style={{ color:'#f87171' }}>⬣</span>
+          </button>
+          <span style={{ color:'#9ca3af', fontSize:'.85rem', marginLeft:'6px' }}>
+            {state === 'loading' && 'Loading the game...'}
+            {state === 'failed' && "I can't load the game right now. Try again later."}
+            {state === 'ready' && saved !== null && <>Score saved: <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{saved}</span></>}
+          </span>
+        </div>
+        <div ref={stageRef} aria-label="Scratch Game" style={{ width:'100%', height:'calc(var(--w) * 3 / 4)', background:'#fff' }} />
+      </div>
       {info && (
         <aside style={{ flex:'1 1 280px', maxWidth:'420px', maxHeight:'calc(100vh - 80px)', overflowY:'auto',
           background:'#1f2937', border:'1px solid #374151', borderRadius:'12px', padding:'4px 18px 18px' }}>
           <h2 style={{ fontSize:'1.2rem', color:'#e5e7eb', margin:'16px 0 0' }}>{info.title}</h2>
+          <p style={{ ...panelText, color:'#9ca3af', marginTop:'8px' }}>
+            Press the green flag to play. Your score goes on the leaderboard when the game ends or you press stop.
+          </p>
           {info.instructions && (
             <>
               <h3 style={panelHeading}>Instructions</h3>
@@ -118,6 +218,8 @@ function ScratchGame() {
               <p style={panelText}>{info.notes}</p>
             </>
           )}
+          <a href={`https://scratch.mit.edu/projects/${SCRATCH_PROJECT}/`} target="_blank" rel="noreferrer"
+            style={{ display:'inline-block', marginTop:'18px', color:'#93c5fd', fontSize:'.85rem' }}>See it on Scratch ↗</a>
         </aside>
       )}
     </div>
@@ -126,12 +228,13 @@ function ScratchGame() {
 
 /* ── Home: the games and the scoreboards (the chat sits at the bottom) ───── */
 function Home({ playerName, onSelectGame }) {
-  const [scores, setScores] = useState({ forest: [], 'tower-defense': [] });
+  const [scores, setScores] = useState({ forest: [], 'tower-defense': [], scratch: [] });
 
   useEffect(() => {
     const poll = () => {
       fetch('/api/scores?game=forest').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, forest: d })); }).catch(() => {});
       fetch('/api/scores?game=tower-defense').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, 'tower-defense': d })); }).catch(() => {});
+      fetch('/api/scores?game=scratch').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, scratch: d })); }).catch(() => {});
     };
     poll();
     const id = setInterval(poll, 5000);
@@ -176,9 +279,10 @@ function Home({ playerName, onSelectGame }) {
           />
         </Section>
       </div>
-      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', maxWidth:'900px', width:'100%' }}>
+      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', maxWidth:'1192px', width:'100%' }}>
         <ScoreTable title="🌲 Forest Adventure" scores={scores.forest} />
         <ScoreTable title="⚔ Tower Defense" scores={scores['tower-defense']} showWave />
+        <ScoreTable title="🐱 Scratch Game" scores={scores.scratch} />
       </div>
     </div>
   );
@@ -265,7 +369,7 @@ function App() {
       </div>
       {selectedGame === 'scratch' ? (
         <>
-          <ScratchGame />
+          <ScratchGame playerName={playerName} />
           <div hidden><OnlineChat playerName={playerName} /></div>
         </>
       ) : (
