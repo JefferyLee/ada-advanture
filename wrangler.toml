@@ -13,6 +13,10 @@ database_id = "c01e14af-e831-41b0-9ac7-745e66a8cfb6"
 [vars]
 ACCESS_TEAM_DOMAIN = "satosium.cloudflareaccess.com"
 ACCESS_AUD = "1ef690110702cf2fdb9afe432b69c81a244798fbc88b87292f65c2f08b6d28fb"
+# The family's own domain has no Access in front of the studio; it asks for a
+# PIN instead (server/studio/pin.js). The PIN is the secret STUDIO_PIN:
+#   npx wrangler pages secret put STUDIO_PIN --project-name ada-advanture
+STUDIO_PIN_HOSTS = "adalovelace.app,www.adalovelace.app"
 
 # ---- Graphic Novel Creator: sync between devices ------------------------
 # The studio keeps books and pictures on this device and, when the two

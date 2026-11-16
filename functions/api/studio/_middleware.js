@@ -1,4 +1,6 @@
 // Gate for everything under /api/studio: only signed-in family members get in.
+// On the family's own domain (STUDIO_PIN_HOSTS) the gate is a PIN instead of
+// Access; see server/studio/pin.js.
 //
 // Cloudflare Access sits in front of the site and adds a signed token to each
 // request it lets through. Checking the token here means the API stays closed
@@ -9,6 +11,10 @@
 //   ACCESS_AUD           the Access application's audience tag; several can be
 //                        given separated by commas (production and preview)
 //   STUDIO_DEV_NO_AUTH   "1" skips the check, on localhost only
+//   STUDIO_PIN_HOSTS     hostnames that use the PIN, comma separated
+//   STUDIO_PIN           the PIN (a secret, set with wrangler pages secret put)
+
+import { hasPin, pinHost } from '../../../server/studio/pin.js';
 
 const CERT_TTL_MS = 60 * 60 * 1000;
 let certCache = { domain: null, at: 0, keys: [] };
@@ -71,6 +77,7 @@ function tokenFrom(request) {
 
 export async function onRequest({ request, env, next }) {
   const { hostname } = new URL(request.url);
+  if (pinHost(env, hostname)) return (await hasPin(request, env)) ? next() : json({ error: 'pin_required' }, 401);
   const local = hostname === 'localhost' || hostname === '127.0.0.1';
   if (local && env.STUDIO_DEV_NO_AUTH === '1') return next();
 
