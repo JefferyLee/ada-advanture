@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ForestGame from './components/ForestGame';
 import OnlineChat from './components/OnlineChat';
 
@@ -6,9 +6,15 @@ import OnlineChat from './components/OnlineChat';
 const thStyle = { padding:'5px 6px', borderBottom:'1px solid #374151', textAlign:'left', fontSize:'.68rem', color:'#9ca3af', textTransform:'uppercase' };
 const tdStyle = { padding:'4px 6px', fontSize:'.8rem', color:'#d1d5db', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' };
 
-/* ── Name popup: floats over the home page; nothing below works until a name is given ── */
-function NamePrompt({ onEnter }) {
-  const [name, setName] = useState(() => localStorage.getItem('arcade_player_name') || '');
+/* ── Name popup: asked only when a name is needed (a game that keeps scores, a chat message) ── */
+function NamePrompt({ initial, onEnter, onCancel }) {
+  const [name, setName] = useState(initial);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -26,6 +32,7 @@ function NamePrompt({ onEnter }) {
         <h2 id="name-prompt-title" style={{ fontSize:'1.4rem', color:'#fbbf24', letterSpacing:'1px', margin:0 }}>
           What's your name?
         </h2>
+        <p style={{ margin:0, color:'#9ca3af', fontSize:'.85rem' }}>It goes on the leaderboards and in the chat.</p>
         <form onSubmit={handleSubmit} style={{ display:'flex', gap:'10px', alignItems:'center' }}>
           <input
             value={name} onChange={e => setName(e.target.value)}
@@ -40,6 +47,9 @@ function NamePrompt({ onEnter }) {
             Enter
           </button>
         </form>
+        <button onClick={onCancel} style={{ background:'none', border:'none', color:'#9ca3af', cursor:'pointer', fontSize:'.85rem', textDecoration:'underline' }}>
+          Not now
+        </button>
       </div>
     </div>
   );
@@ -242,7 +252,7 @@ const GAMES = [
   { id: 'scratch', title: '🐱 Scratch Game', desc: 'A game made in Scratch. Click the green flag to start!', color: '#f97316' },
 ];
 
-function Home({ playerName, onSelectGame }) {
+function Home({ onSelectGame }) {
   const [scores, setScores] = useState({ forest: [], 'tower-defense': [], scratch: [] });
 
   useEffect(() => {
@@ -257,14 +267,14 @@ function Home({ playerName, onSelectGame }) {
   }, []);
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'20px', padding:'24px 20px', paddingBottom:'240px' }}>
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'20px', padding:'24px 20px', paddingBottom:'100px' }}>
       <h1 style={{ fontSize:'2.4rem', color:'#fbbf24', letterSpacing:'3px', textTransform:'uppercase', textShadow:'0 0 30px #fbbf2466', margin:0 }}>
         Ada's Studio
       </h1>
       <p style={{ color:'#9ca3af', fontSize:'.9rem', margin:0 }}>
-        {playerName ? <>Welcome, <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{playerName}</span>! What would you like to do?</> : 'What would you like to do?'}
+        Welcome! What would you like to do?
       </p>
-      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', alignItems:'stretch' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:'24px', width:'100%', maxWidth:'868px' }}>
         <Section title="Game Studio">
           {GAMES.map((g) => (
             <div key={g.id} style={{ width:'260px', display:'flex', flexDirection:'column', gap:'14px' }}>
@@ -273,15 +283,15 @@ function Home({ playerName, onSelectGame }) {
             </div>
           ))}
         </Section>
-        <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
-          <Section title="Drawing Studio" note="🔒 Drawing needs the PIN. Anyone can read the comics.">
+        <div style={{ display:'flex', gap:'24px', flexWrap:'wrap' }}>
+          <Section title="Drawing Studio" note="🔒 Drawing needs the PIN. Anyone can read the comics." grow>
             <StudioCard icon="🎨" title="Start Drawing" color="#8b5cf6"
-              desc="Draw comics and character cards."
+              desc="Draw, color and make your own comics and character cards."
               onClick={() => onSelectGame('studio')} readHref="/comics/" readLabel="👀 Read Ada's Comics" />
           </Section>
-          <Section title="Writing Studio" note="🔒 Writing needs the PIN. Anyone can read the blog.">
+          <Section title="Writing Studio" note="🔒 Writing needs the PIN. Anyone can read the blog." grow>
             <StudioCard icon="✏️" title="Start Writing" color="#0ea5e9"
-              desc="Write your diary and blog."
+              desc="Write in your diary, and put your best pages on your blog."
               onClick={() => onSelectGame('writing')} readHref="/blog/" readLabel="📖 Read Ada's Blog" />
           </Section>
         </div>
@@ -292,9 +302,9 @@ function Home({ playerName, onSelectGame }) {
 
 // A framed group of cards with its name on top (and a short note under them):
 // the games, the drawing studio.
-function Section({ title, note, children }) {
+function Section({ title, note, grow, children }) {
   return (
-    <section style={{ display:'flex', flexDirection:'column', border:'2px solid #374151', borderRadius:'20px',
+    <section style={{ display:'flex', flexDirection:'column', border:'2px solid #374151', borderRadius:'20px', ...(grow ? { flex:'1 1 340px' } : {}),
       padding:'18px 18px 22px', background:'#ffffff06' }}>
       <h2 style={{ fontSize:'1rem', color:'#fbbf24', letterSpacing:'2px', textTransform:'uppercase', margin:'0 0 16px', textAlign:'center' }}>
         {title}
@@ -309,7 +319,7 @@ function Section({ title, note, children }) {
 // with what Ada has published there.
 function StudioCard({ icon, title, desc, color, onClick, readHref, readLabel }) {
   return (
-    <div style={{ width:'260px', display:'flex', flexDirection:'column', gap:'10px' }}>
+    <div style={{ flex:1, display:'flex', flexDirection:'column', gap:'10px' }}>
       <button onClick={onClick} style={{
         background:'#1f2937', border:`2px solid ${color}`, borderRadius:'16px', padding:'16px 18px', cursor:'pointer',
         display:'flex', alignItems:'center', gap:'14px', textAlign:'left', transition:'transform .15s, box-shadow .15s',
@@ -347,12 +357,19 @@ function GameCard({ title, desc, color, onClick }) {
 
 /* ── Main App ─────────────────────────────────────────────────────────────── */
 function App() {
-  const [playerName, setPlayerName]   = useState('');
+  // The name is remembered on this device (Tower Defense uses the same one).
+  const [playerName, setPlayerName]   = useState(() => { try { return localStorage.getItem('arcade_player_name') || ''; } catch { return ''; } });
   const [selectedGame, setSelectedGame] = useState(null);
+  const [asking, setAsking] = useState(null); // { then } while the name popup is up
+
+  // Ask for a name, then carry on with what needed it (if the popup isn't closed with "Not now").
+  const askName = useCallback((then) => setAsking({ then }), []);
 
   const handleEnter = (name) => {
     setPlayerName(name);
-    localStorage.setItem('arcade_player_name', name);
+    try { localStorage.setItem('arcade_player_name', name); } catch { /* still works for this visit */ }
+    asking?.then?.();
+    setAsking(null);
   };
 
   const handleSelectGame = (game) => {
@@ -368,26 +385,26 @@ function App() {
       window.location.href = '/studio/#writing';
       return;
     }
+    // Forest and the Scratch game put scores on the leaderboard, so they need a name.
+    if (!playerName) { askName(() => setSelectedGame(game)); return; }
     setSelectedGame(game);
   };
 
-  // Home: games, scoreboards and chat. Until a name is given the name popup
-  // floats on top and everything under it is inert (no clicks, no typing).
+  const chat = <OnlineChat playerName={playerName} onNeedName={askName} />;
+  const prompt = asking && <NamePrompt initial={playerName} onEnter={handleEnter} onCancel={() => setAsking(null)} />;
+
+  // Home: the studios and the leaderboards, with the chat folded into a bubble in the corner.
   if (!selectedGame) {
     return (
       <>
-        <div {...(playerName ? {} : { inert: '', 'aria-hidden': true })}>
-          <Home playerName={playerName} onSelectGame={handleSelectGame} />
-          <OnlineChat playerName={playerName} />
-        </div>
-        {!playerName && <NamePrompt onEnter={handleEnter} />}
+        <Home onSelectGame={handleSelectGame} />
+        {chat}
+        {prompt}
       </>
     );
   }
 
-  // Playing a game: Forest with the chat under it. The Scratch game fills the
-  // window, so the chat is hidden there; it keeps running so the player still
-  // shows as online.
+  // Playing a game: Forest or the Scratch game, the chat bubble in the corner.
   return (
     <div>
       <div style={{ textAlign:'left', padding:'8px 20px' }}>
@@ -400,16 +417,14 @@ function App() {
         </span>
       </div>
       {selectedGame === 'scratch' ? (
-        <>
-          <ScratchGame playerName={playerName} />
-          <div hidden><OnlineChat playerName={playerName} /></div>
-        </>
+        <ScratchGame playerName={playerName} />
       ) : (
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'center', minHeight:'calc(100vh - 220px)', paddingTop:'8px' }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:'8px' }}>
           <ForestGame playerName={playerName} />
-          <OnlineChat playerName={playerName} />
         </div>
       )}
+      {chat}
+      {prompt}
     </div>
   );
 }
