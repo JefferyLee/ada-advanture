@@ -19,8 +19,9 @@ function OnlineChat({ playerName }) {
       .catch(() => {});
   }, []);
 
-  // Heartbeat every 15 seconds
+  // Heartbeat every 15 seconds, once the player has a name
   useEffect(() => {
+    if (!playerName) return undefined;
     const beat = () => {
       fetch('/api/presence', {
         method:  'POST',
@@ -31,7 +32,7 @@ function OnlineChat({ playerName }) {
     beat();
     const id = setInterval(beat, 15000);
     return () => clearInterval(id);
-  }, [displayName, location]);
+  }, [playerName, displayName, location]);
 
   // Poll presence and chat every 5 seconds
   useEffect(() => {

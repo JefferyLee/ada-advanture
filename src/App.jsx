@@ -6,22 +6,9 @@ import OnlineChat from './components/OnlineChat';
 const thStyle = { padding:'6px 10px', borderBottom:'1px solid #374151', textAlign:'left', fontSize:'.75rem', color:'#9ca3af', textTransform:'uppercase' };
 const tdStyle = { padding:'5px 10px', fontSize:'.82rem', color:'#d1d5db' };
 
-/* ── Welcome Page: name input + online users + scoreboard ─────────────────── */
-function WelcomePage({ onEnter }) {
-  const [name, setName]       = useState('');
-  const [players, setPlayers] = useState([]);
-  const [scores, setScores]   = useState({ forest: [], 'tower-defense': [] });
-
-  useEffect(() => {
-    const poll = () => {
-      fetch('/api/presence').then(r => r.json()).then(d => { if (Array.isArray(d)) setPlayers(d); }).catch(() => {});
-      fetch('/api/scores?game=forest').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, forest: d })); }).catch(() => {});
-      fetch('/api/scores?game=tower-defense').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, 'tower-defense': d })); }).catch(() => {});
-    };
-    poll();
-    const id = setInterval(poll, 5000);
-    return () => clearInterval(id);
-  }, []);
+/* ── Name popup: floats over the home page; nothing below works until a name is given ── */
+function NamePrompt({ onEnter }) {
+  const [name, setName] = useState(() => localStorage.getItem('arcade_player_name') || '');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -31,49 +18,28 @@ function WelcomePage({ onEnter }) {
   };
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', minHeight:'100vh', padding:'40px 20px', gap:'28px' }}>
-      <h1 style={{ fontSize:'2.4rem', color:'#fbbf24', letterSpacing:'3px', textTransform:'uppercase', textShadow:'0 0 30px #fbbf2466' }}>
-        🎮 Game Arcade
-      </h1>
-
-      {/* Name input */}
-      <form onSubmit={handleSubmit} style={{ display:'flex', gap:'10px', alignItems:'center' }}>
-        <input
-          value={name} onChange={e => setName(e.target.value)}
-          placeholder="Enter your name" maxLength={10} autoFocus
-          style={{ padding:'10px 16px', fontSize:'1rem', borderRadius:'8px', border:'2px solid #374151',
-            background:'#1f2937', color:'#e5e7eb', outline:'none', width:'200px', textAlign:'center' }}
-          onFocus={e => e.target.style.borderColor = '#fbbf24'}
-          onBlur={e => e.target.style.borderColor = '#374151'}
-        />
-        <button type="submit" style={{ padding:'10px 28px', fontSize:'1rem', fontWeight:'bold',
-          background:'#fbbf24', color:'#111827', border:'none', borderRadius:'8px', cursor:'pointer' }}>
-          Enter
-        </button>
-      </form>
-
-      {/* Online users + Scoreboards */}
-      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', maxWidth:'900px', width:'100%' }}>
-
-        {/* Online Players */}
-        <div style={{ background:'#1f2937', border:'1px solid #374151', borderRadius:'12px', padding:'16px', minWidth:'180px', flex:'0 0 180px' }}>
-          <div style={{ fontSize:'.75rem', textTransform:'uppercase', letterSpacing:'1px', color:'#4ade80', marginBottom:'10px', fontWeight:'bold' }}>
-            🟢 Online ({players.length})
-          </div>
-          {players.length === 0 && <div style={{ color:'#6b7280', fontSize:'.8rem' }}>No one yet</div>}
-          {players.map((p, i) => (
-            <div key={i} style={{ marginBottom:'6px' }}>
-              <div style={{ fontWeight:'bold', fontSize:'.85rem', color:'#fbbf24' }}>{p.name}</div>
-              <div style={{ fontSize:'.7rem', color:'#6b7280' }}>{p.location}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Forest Scoreboard */}
-        <ScoreTable title="🌲 Forest Adventure" scores={scores.forest} />
-
-        {/* Tower Defense Scoreboard */}
-        <ScoreTable title="⚔ Tower Defense" scores={scores['tower-defense']} showWave />
+    <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center',
+      padding:'20px', background:'rgba(10,10,25,.72)', backdropFilter:'blur(3px)' }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="name-prompt-title"
+        style={{ background:'#1f2937', border:'2px solid #fbbf24', borderRadius:'16px', padding:'28px 32px',
+          display:'flex', flexDirection:'column', alignItems:'center', gap:'18px', boxShadow:'0 20px 60px #000a' }}>
+        <h2 id="name-prompt-title" style={{ fontSize:'1.4rem', color:'#fbbf24', letterSpacing:'1px', margin:0 }}>
+          What's your name?
+        </h2>
+        <form onSubmit={handleSubmit} style={{ display:'flex', gap:'10px', alignItems:'center' }}>
+          <input
+            value={name} onChange={e => setName(e.target.value)}
+            placeholder="Enter your name" maxLength={10} autoFocus
+            style={{ padding:'10px 16px', fontSize:'1rem', borderRadius:'8px', border:'2px solid #374151',
+              background:'#111827', color:'#e5e7eb', outline:'none', width:'200px', textAlign:'center' }}
+            onFocus={e => e.target.style.borderColor = '#fbbf24'}
+            onBlur={e => e.target.style.borderColor = '#374151'}
+          />
+          <button type="submit" style={{ padding:'10px 28px', fontSize:'1rem', fontWeight:'bold',
+            background:'#fbbf24', color:'#111827', border:'none', borderRadius:'8px', cursor:'pointer' }}>
+            Enter
+          </button>
+        </form>
       </div>
     </div>
   );
@@ -127,16 +93,27 @@ function ScratchGame() {
   );
 }
 
-/* ── Game Hub: choose a game ──────────────────────────────────────────────── */
-function GameHub({ playerName, onSelectGame }) {
+/* ── Home: the games and the scoreboards (the chat sits at the bottom) ───── */
+function Home({ playerName, onSelectGame }) {
+  const [scores, setScores] = useState({ forest: [], 'tower-defense': [] });
+
+  useEffect(() => {
+    const poll = () => {
+      fetch('/api/scores?game=forest').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, forest: d })); }).catch(() => {});
+      fetch('/api/scores?game=tower-defense').then(r => r.json()).then(d => { if (Array.isArray(d)) setScores(s => ({ ...s, 'tower-defense': d })); }).catch(() => {});
+    };
+    poll();
+    const id = setInterval(poll, 5000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center',
-      minHeight:'50vh', gap:'28px', padding:'40px 20px', paddingBottom:'240px' }}>
-      <h1 style={{ fontSize:'2rem', color:'#fbbf24', letterSpacing:'3px', textTransform:'uppercase', textShadow:'0 0 30px #fbbf2466' }}>
-        🎮 Game Arcade
+    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'28px', padding:'40px 20px', paddingBottom:'240px' }}>
+      <h1 style={{ fontSize:'2.4rem', color:'#fbbf24', letterSpacing:'3px', textTransform:'uppercase', textShadow:'0 0 30px #fbbf2466' }}>
+        Ada's Studio
       </h1>
       <p style={{ color:'#9ca3af', fontSize:'.9rem' }}>
-        Welcome, <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{playerName}</span>! Choose a game:
+        {playerName ? <>Welcome, <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{playerName}</span>! Choose a game:</> : 'Choose a game:'}
       </p>
       <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center' }}>
         <GameCard
@@ -157,6 +134,10 @@ function GameHub({ playerName, onSelectGame }) {
           color="#f97316"
           onClick={() => onSelectGame('scratch')}
         />
+      </div>
+      <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', maxWidth:'900px', width:'100%' }}>
+        <ScoreTable title="🌲 Forest Adventure" scores={scores.forest} />
+        <ScoreTable title="⚔ Tower Defense" scores={scores['tower-defense']} showWave />
       </div>
     </div>
   );
@@ -196,17 +177,16 @@ function App() {
     setSelectedGame(game);
   };
 
-  // Not logged in — show welcome page (no chat yet)
-  if (!playerName) {
-    return <WelcomePage onEnter={handleEnter} />;
-  }
-
-  // Logged in but no game selected — show game hub + chat
+  // Home: games, scoreboards and chat. Until a name is given the name popup
+  // floats on top and everything under it is inert (no clicks, no typing).
   if (!selectedGame) {
     return (
       <>
-        <GameHub playerName={playerName} onSelectGame={handleSelectGame} />
-        <OnlineChat playerName={playerName} />
+        <div {...(playerName ? {} : { inert: '', 'aria-hidden': true })}>
+          <Home playerName={playerName} onSelectGame={handleSelectGame} />
+          <OnlineChat playerName={playerName} />
+        </div>
+        {!playerName && <NamePrompt onEnter={handleEnter} />}
       </>
     );
   }
