@@ -265,7 +265,7 @@ function Home({ playerName, onSelectGame }) {
         {playerName ? <>Welcome, <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{playerName}</span>! What would you like to do?</> : 'What would you like to do?'}
       </p>
       <div style={{ display:'flex', gap:'24px', flexWrap:'wrap', justifyContent:'center', alignItems:'stretch' }}>
-        <Section title="Ada's Game Studio">
+        <Section title="Game Studio">
           {GAMES.map((g) => (
             <div key={g.id} style={{ width:'260px', display:'flex', flexDirection:'column', gap:'14px' }}>
               <GameCard title={g.title} desc={g.desc} color={g.color} onClick={() => onSelectGame(g.id)} />
@@ -273,7 +273,7 @@ function Home({ playerName, onSelectGame }) {
             </div>
           ))}
         </Section>
-        <Section title="Ada's Drawing Studio">
+        <Section title="Drawing Studio">
           <StudioCard onClick={() => onSelectGame('studio')} />
         </Section>
       </div>
