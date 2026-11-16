@@ -354,6 +354,7 @@ html[data-theme='crafty'] .gn-cover { border-radius: 4px 12px 12px 4px; }
 }
 .gn-cover-title { font-family: 'Bangers', cursive; font-size: 38px; line-height: 1.05; letter-spacing: 1px; overflow-wrap: anywhere; }
 .gn-cover-meta { font-size: 16px; font-weight: 700; }
+.gn-cover-public { align-self: flex-start; padding: 2px 10px; border-radius: 999px; background: #fff; color: var(--ink); font-size: 14px; font-weight: 700; }
 .gn-cover-new {
   border: 4px dashed var(--fg-muted); box-shadow: none; background: var(--surface); color: var(--fg) !important;
   align-items: center; justify-content: center; gap: 10px; font-weight: 700; font-size: 22px;
@@ -643,3 +644,35 @@ html[data-theme='crafty'] .gn-modal-head .gn-h2 { color: #2e2417; }
   /* 900 page pixels across 297mm */
   .gn-print .gn-page { transform: scale(1.2472); transform-origin: top left; border: none; }
 }
+
+/* ---- Writing Studio: the diary list on the left, the open page on the right ---- */
+.gn-write { flex: 1; min-height: 0; display: flex; }
+.gn-write-list {
+  flex: 0 0 260px; padding: 16px 14px; background: var(--surface); border-right: var(--edge);
+  box-shadow: var(--surface-shadow); display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+}
+.gn-write-item {
+  text-align: left; padding: 10px 12px; border: var(--ctl-border); border-radius: var(--ctl-radius);
+  background: var(--ctl); color: var(--ctl-fg); box-shadow: var(--ctl-shadow); font: inherit; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.gn-write-item[aria-current='page'] { border: var(--on-border); background: var(--on); box-shadow: var(--on-shadow); }
+.gn-write-item-title { font-weight: 700; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gn-write-item-meta { font-size: 13px; color: var(--fg-muted); }
+.gn-write-page {
+  flex: 1; min-width: 0; padding: 24px 28px; display: flex; flex-direction: column; gap: 12px;
+  max-width: 900px; margin: 0 auto; width: 100%;
+}
+.gn-write-head { display: flex; gap: 12px; flex-wrap: wrap; }
+.gn-write-title, .gn-write-date, .gn-write-text {
+  font: inherit; color: var(--ink); background: var(--paper); border: var(--ctl-border); border-radius: var(--ctl-radius);
+}
+.gn-write-title { flex: 1 1 280px; min-width: 0; padding: 10px 14px; font-size: 26px; font-weight: 700; }
+.gn-write-date { padding: 10px 12px; font-size: 18px; }
+.gn-write-where { margin: 0; font-size: 15px; color: var(--fg-muted); }
+.gn-write-where.is-public { color: var(--fg); font-weight: 700; }
+.gn-write-text {
+  flex: 1; min-height: 240px; padding: 16px 18px; resize: none; font-family: 'Patrick Hand', cursive;
+  font-size: 24px; line-height: 1.5;
+}
+.gn-write-actions { display: flex; gap: 12px; flex-wrap: wrap; }

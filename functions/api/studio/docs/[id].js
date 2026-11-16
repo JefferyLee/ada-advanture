@@ -1,6 +1,6 @@
 // PUT /api/studio/docs/<id>
 //
-// Save a book or a photo entry. The body is
+// Save a book, a photo in My Photos or a diary entry. The body is
 //   { kind, data, baseRev }            to save
 //   { kind, deleted: true, baseRev }   to delete
 // where baseRev is the revision the sender last saw (0 for something new).
@@ -10,6 +10,7 @@
 import {
   DOC_KINDS, ensureSchema, json, notConfigured, readDoc, storage, validId,
 } from '../../../../server/studio/storage.js';
+import { updatePublic } from '../../../../server/studio/public.js';
 
 const MAX_BODY = 8 * 1024 * 1024;
 
@@ -58,7 +59,11 @@ export async function onRequestPut({ request, env, params }) {
   ]);
 
   const rev = saved.results?.[0]?.rev;
-  if (rev) return json({ rev });
+  if (rev) {
+    // A book or entry that is (or was) published is put on, or taken off, the public pages.
+    await updatePublic(store.db, { id, kind, data: body.data, bodyKey, deleted });
+    return json({ rev });
+  }
 
   // Someone else got there first. Drop the body just written and report what is there now.
   if (bodyKey) await store.bucket.delete(bodyKey);

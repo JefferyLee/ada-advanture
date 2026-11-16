@@ -4,7 +4,9 @@ import react from '@vitejs/plugin-react'
 
 const page = (path) => fileURLToPath(new URL(path, import.meta.url))
 
-// Two pages: the game arcade at / and the Graphic Novel Creator at /studio/.
+// The home page and games at /, the studio (drawing and writing, behind the
+// PIN) at /studio/, and the public pages with what Ada has published:
+// her comics at /comics/ and her blog at /blog/.
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -12,6 +14,8 @@ export default defineConfig({
       input: {
         main: page('./index.html'),
         studio: page('./studio/index.html'),
+        comics: page('./comics/index.html'),
+        blog: page('./blog/index.html'),
       },
     },
   },

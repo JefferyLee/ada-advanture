@@ -53,10 +53,11 @@ async function takeRemote(doc, out) {
   const meta = await store.getMeta(`${doc.kind}:${doc.id}`);
   if (meta && meta.rev === doc.rev) return; // already have exactly this
 
-  if (doc.kind === 'book' && meta?.dirty && !meta.deleted) {
-    // Changed here and on another device. Keep this device's version as a copy.
-    const mine = await store.getDoc('book', doc.id);
-    if (mine) {
+  if ((doc.kind === 'book' || doc.kind === 'entry') && meta?.dirty && !meta.deleted) {
+    // Changed here and on another device. Keep this device's version as a copy
+    // (a diary entry's copy stays in the diary until it is published again).
+    const mine = await store.getDoc(doc.kind, doc.id);
+    if (mine && doc.kind === 'book') {
       const copy = {
         ...structuredClone(mine),
         id: newId(),
@@ -64,7 +65,11 @@ async function takeRemote(doc, out) {
         updatedAt: Date.now(),
       };
       await store.saveBook(copy);
-      out.copies.push({ from: doc.id, to: copy.id });
+      out.copies.push({ kind: 'book', from: doc.id, to: copy.id });
+    } else if (mine) {
+      const copy = { ...mine, id: newId(), title: `${mine.title.trim() || 'Untitled'} (copy)`.slice(0, 80), published: false, updatedAt: Date.now() };
+      await store.saveEntry(copy);
+      out.copies.push({ kind: 'entry', from: doc.id, to: copy.id });
     }
   }
   await store.applyRemote(doc.kind, doc.id, doc.deleted ? null : doc.data, doc.rev);
@@ -121,7 +126,7 @@ async function push(out) {
 
 // onEvent gets { type: 'status', status } with status one of
 //   'off' | 'syncing' | 'synced' | 'waiting' (changes here couldn't be sent yet)
-// and { type: 'changed', changed: [...], copies: [{ from, to }] } when a round
+// and { type: 'changed', changed: [...], copies: [{ kind, from, to }] } when a round
 // brought in something new.
 export function createSync(onEvent) {
   let off = false;

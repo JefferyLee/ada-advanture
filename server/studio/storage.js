@@ -2,7 +2,8 @@
 //
 // Storage: the D1 database STUDIO_DB lists every synced document and its
 // revision; the R2 bucket STUDIO_BUCKET holds the document bodies and the
-// images. A "document" is a book or a photo waiting in the New Photos tray.
+// images. A "document" is a book, a photo in My Photos, or a diary entry from
+// the Writing Studio.
 //
 // Revisions come from one counter, so "everything changed since revision N"
 // is a single query. Each save writes a new body object and leaves the old
@@ -11,7 +12,7 @@
 // There is one shared library: everyone who gets past the access check sees
 // and edits the same books.
 
-export const DOC_KINDS = ['book', 'photo'];
+export const DOC_KINDS = ['book', 'photo', 'entry'];
 
 const ID = /^[A-Za-z0-9_-]{8,64}$/;
 export const validId = (id) => typeof id === 'string' && ID.test(id);
@@ -41,6 +42,24 @@ export function ensureSchema(db) {
       db.prepare('CREATE INDEX IF NOT EXISTS studio_docs_rev ON studio_docs (rev)'),
       db.prepare('CREATE TABLE IF NOT EXISTS studio_meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL)'),
       db.prepare("INSERT OR IGNORE INTO studio_meta (key, value) VALUES ('rev', 0)"),
+      // What anyone may see without the PIN (see public.js): published books
+      // and blog posts, the pictures those books show, and likes.
+      db.prepare(`CREATE TABLE IF NOT EXISTS studio_public (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        body_key TEXT NOT NULL,
+        published_at INTEGER NOT NULL
+      )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS studio_public_images (
+        image_id TEXT NOT NULL,
+        doc_id TEXT NOT NULL,
+        PRIMARY KEY (image_id, doc_id)
+      )`),
+      db.prepare(`CREATE TABLE IF NOT EXISTS studio_likes (
+        doc_id TEXT NOT NULL,
+        who TEXT NOT NULL,
+        PRIMARY KEY (doc_id, who)
+      )`),
     ]).catch((error) => {
       ready = null;
       throw error;

@@ -349,6 +349,18 @@ export default function Editor({ book: stored, photos, saveLabel, saveOk, onChan
     selectPage(neighbour.id);
   };
 
+  // A published episode can be seen by anyone on the public comics page, as it
+  // is now: later changes show there too, until it is taken off.
+  const togglePublished = () => {
+    if (!book.published) {
+      if (!window.confirm('Publish this episode? Everyone on the internet will be able to see it.')) return;
+      update((b) => { b.published = true; b.publishedAt = Date.now(); });
+    } else {
+      if (!window.confirm('Take this episode off the public page?')) return;
+      update((b) => { b.published = false; });
+    }
+  };
+
   const setText = (target, text) =>
     update((b) => { getPart(onPage(b), target).text = text; }, `text:${page.id}:${target}`);
 
@@ -516,6 +528,9 @@ export default function Editor({ book: stored, photos, saveLabel, saveOk, onChan
         </span>
         <button className="gn-bar-btn" onClick={undo} disabled={!canUndo}><Icon name="undo" /> Undo</button>
         <button className="gn-bar-btn" onClick={redo} disabled={!canRedo}><Icon name="redo" /> Redo</button>
+        <button className="gn-bar-btn" aria-pressed={Boolean(book.published)} onClick={togglePublished}>
+          🌍 {book.published ? 'Published' : 'Publish'}
+        </button>
         <button className="gn-bar-btn gn-bar-btn-yellow" onClick={() => window.print()}><Icon name="print" /> Print</button>
       </header>
 

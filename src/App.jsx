@@ -273,9 +273,18 @@ function Home({ playerName, onSelectGame }) {
             </div>
           ))}
         </Section>
-        <Section title="Drawing Studio" note="🔒 You need the PIN to get in.">
-          <StudioCard onClick={() => onSelectGame('studio')} />
-        </Section>
+        <div style={{ display:'flex', flexDirection:'column', gap:'24px' }}>
+          <Section title="Drawing Studio" note="🔒 Drawing needs the PIN. Anyone can read the comics.">
+            <StudioCard icon="🎨" title="Start Drawing" color="#8b5cf6"
+              desc="Draw comics and character cards."
+              onClick={() => onSelectGame('studio')} readHref="/comics/" readLabel="👀 Read Ada's Comics" />
+          </Section>
+          <Section title="Writing Studio" note="🔒 Writing needs the PIN. Anyone can read the blog.">
+            <StudioCard icon="✏️" title="Start Writing" color="#0ea5e9"
+              desc="Write your diary and blog."
+              onClick={() => onSelectGame('writing')} readHref="/blog/" readLabel="📖 Read Ada's Blog" />
+          </Section>
+        </div>
       </div>
     </div>
   );
@@ -296,25 +305,27 @@ function Section({ title, note, children }) {
   );
 }
 
-// The drawing studio's card: as tall as the games beside it, so it gets a big picture.
-function StudioCard({ onClick }) {
-  const color = '#8b5cf6';
+// A studio's card: the way in (needs the PIN) and, under it, the public page
+// with what Ada has published there.
+function StudioCard({ icon, title, desc, color, onClick, readHref, readLabel }) {
   return (
-    <button onClick={onClick} style={{
-      background:'#1f2937', border:`2px solid ${color}`, borderRadius:'16px', padding:'28px 24px', width:'260px', cursor:'pointer',
-      display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'14px', textAlign:'center',
-      transition:'transform .15s, box-shadow .15s',
-    }}
-    onMouseEnter={e => { e.currentTarget.style.transform='translateY(-4px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${color}44`; }}
-    onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}
-    >
-      <div style={{ fontSize:'4.5rem', lineHeight:1 }}>🎨</div>
-      <div style={{ fontSize:'1.3rem', fontWeight:'bold', color:'#e5e7eb' }}>Start Drawing</div>
-      <div style={{ fontSize:'.85rem', color:'#9ca3af', lineHeight:'1.5' }}>Draw, color and make your own comics and character cards!</div>
-      <div style={{ marginTop:'6px', padding:'8px 18px', borderRadius:'999px', background:color, color:'#fff', fontWeight:'bold', fontSize:'.9rem' }}>
-        Open the Studio →
-      </div>
-    </button>
+    <div style={{ width:'260px', display:'flex', flexDirection:'column', gap:'10px' }}>
+      <button onClick={onClick} style={{
+        background:'#1f2937', border:`2px solid ${color}`, borderRadius:'16px', padding:'16px 18px', cursor:'pointer',
+        display:'flex', alignItems:'center', gap:'14px', textAlign:'left', transition:'transform .15s, box-shadow .15s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px ${color}44`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}
+      >
+        <span style={{ fontSize:'2.6rem', lineHeight:1 }}>{icon}</span>
+        <span style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+          <span style={{ fontSize:'1.15rem', fontWeight:'bold', color:'#e5e7eb' }}>{title} 🔒</span>
+          <span style={{ fontSize:'.8rem', color:'#9ca3af', lineHeight:'1.4' }}>{desc}</span>
+        </span>
+      </button>
+      <a href={readHref} style={{ display:'block', textAlign:'center', padding:'8px 12px', borderRadius:'999px', background:color,
+        color:'#fff', fontWeight:'bold', fontSize:'.9rem', textDecoration:'none' }}>{readLabel} →</a>
+    </div>
   );
 }
 
@@ -351,6 +362,10 @@ function App() {
     }
     if (game === 'studio') {
       window.location.href = '/studio/';
+      return;
+    }
+    if (game === 'writing') {
+      window.location.href = '/studio/#writing';
       return;
     }
     setSelectedGame(game);

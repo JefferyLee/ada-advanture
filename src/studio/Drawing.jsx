@@ -1,15 +1,20 @@
-import { useEffect, useId, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useState } from 'react';
 import { drawingBox, strokePath } from './model.js';
 import { imageUrl } from './store.js';
 
+// Where pictures come from: this device and the studio's server, or for the
+// public pages, the public picture address (which needs no PIN).
+export const ImageSource = createContext(imageUrl);
+
 export function useStoredImage(id) {
+  const source = useContext(ImageSource);
   const [url, setUrl] = useState(null);
   useEffect(() => {
     let alive = true;
     setUrl(null);
-    if (id) imageUrl(id).then((u) => { if (alive) setUrl(u); });
+    if (id) source(id).then((u) => { if (alive) setUrl(u); });
     return () => { alive = false; };
-  }, [id]);
+  }, [id, source]);
   return url;
 }
 

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Bookshelf from './Bookshelf.jsx';
 import Editor from './Editor.jsx';
+import Writing from './Writing.jsx';
 import { newBook, newId } from './model.js';
 import { samePhoto, shrinkPhoto } from './photo.js';
-import { listBooks, listPhotos, putImage, removeBook, removePhoto, saveBook, savePhoto } from './store.js';
+import {
+  listBooks, listEntries, listPhotos, putImage, removeBook, removeEntry, removePhoto, saveBook, saveEntry, savePhoto,
+} from './store.js';
 import { createSync } from './sync.js';
 
 const SAVE_LABELS = {
@@ -13,11 +16,22 @@ const SAVE_LABELS = {
   waiting: 'Saved on this device',
 };
 
-// Top of the app: loads the books and photos, shows the shelf or the editor,
-// saves, and keeps this device in step with the others.
+// Today on this device's calendar, as YYYY-MM-DD.
+const today = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+// Top of the app: loads the books, photos and diary, shows the Drawing Studio
+// (shelf or editor) or the Writing Studio (#writing), saves, and keeps this
+// device in step with the others.
 export default function Studio() {
   const [books, setBooks] = useState(null); // null while loading
   const [photos, setPhotos] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [writing, setWriting] = useState(() => window.location.hash === '#writing');
+  const [entryId, setEntryId] = useState(null); // the diary page open in the Writing Studio
+  const pendingEntry = useRef(null); // { entry, timer } waiting to be written
   const [openId, setOpenId] = useState(null);
   const [saveState, setSaveState] = useState('saved'); // saved | saving | error
   const [syncState, setSyncState] = useState('off');
@@ -28,7 +42,7 @@ export default function Studio() {
   const openNow = useRef(null);
   openNow.current = openId;
 
-  const load = () => Promise.all([listBooks(), listPhotos()]);
+  const load = () => Promise.all([listBooks(), listPhotos(), listEntries()]);
 
   // Something was just saved on this device and still has to go to the
   // server. Say so straight away, rather than claiming it is everywhere
@@ -38,7 +52,19 @@ export default function Studio() {
     sync.current?.soon();
   }, []);
 
+  const flushEntry = useCallback(() => {
+    const p = pendingEntry.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pendingEntry.current = null;
+    saveEntry(p.entry).then(
+      () => { setSaveState('saved'); send(); },
+      () => setSaveState('error'),
+    );
+  }, [send]);
+
   const flush = useCallback(() => {
+    flushEntry();
     const p = pending.current;
     if (!p) return;
     clearTimeout(p.timer);
@@ -47,10 +73,10 @@ export default function Studio() {
       () => { setSaveState('saved'); send(); },
       () => setSaveState('error'),
     );
-  }, [send]);
+  }, [send, flushEntry]);
 
   useEffect(() => {
-    load().then(([b, p]) => { setBooks(b); setPhotos(p); }, () => setBooks([]));
+    load().then(([b, p, e]) => { setBooks(b); setPhotos(p); setEntries(e); }, () => setBooks([]));
 
     const engine = createSync(async (event) => {
       if (event.type === 'status') { setSyncState(event.status); return; }
@@ -58,16 +84,21 @@ export default function Studio() {
       // everything in one go: the lists, which book is open, and the signal
       // that reopens the editor on a book that was replaced. Doing it in one
       // step means the editor is never rebuilt a moment after it was opened.
-      const [b, p] = await load();
+      const [b, p, e] = await load();
       setBooks(b);
       setPhotos(p);
-      const mine = event.copies.find((c) => c.from === openNow.current);
+      setEntries(e);
+      const bookCopies = event.copies.filter((c) => c.kind === 'book');
+      const mine = bookCopies.find((c) => c.from === openNow.current);
       if (mine) {
         // The open book was changed elsewhere too. Carry on in the copy that holds this device's work.
         setOpenId(mine.to);
         setNotice('This book was changed on another device too, so I kept both. You are working on the copy.');
-      } else if (event.copies.length) {
+      } else if (bookCopies.length) {
         setNotice('A book was changed on two devices, so I kept both. Look for the one marked (copy).');
+      }
+      if (event.copies.some((c) => c.kind === 'entry')) {
+        setNotice('A diary page was changed on two devices, so I kept both. Look for the one marked (copy).');
       }
       setArrivals((prev) => {
         const next = { ...prev };
@@ -180,6 +211,48 @@ export default function Studio() {
     send();
   };
 
+  // The Writing Studio's diary. Typing is saved a moment after it stops, like a book.
+  const changeEntry = useCallback((entry, now = false) => {
+    const next = { ...entry, updatedAt: Date.now() };
+    setEntries((es) => es.map((e) => (e.id === next.id ? next : e)));
+    setSaveState('saving');
+    if (pendingEntry.current && pendingEntry.current.entry.id !== next.id) flushEntry();
+    if (pendingEntry.current) clearTimeout(pendingEntry.current.timer);
+    pendingEntry.current = { entry: next, timer: setTimeout(flushEntry, now ? 0 : 400) };
+  }, [flushEntry]);
+
+  const createEntry = async () => {
+    flushEntry();
+    const now = Date.now();
+    const entry = { id: newId(), title: '', date: today(), text: '', published: false, createdAt: now, updatedAt: now };
+    await saveEntry(entry);
+    setEntries(await listEntries());
+    setEntryId(entry.id);
+    send();
+  };
+
+  const deleteEntry = async (entry) => {
+    const name = entry.title.trim() || 'this page';
+    const blog = entry.published ? ' It comes off your blog too.' : '';
+    if (!window.confirm(`Delete "${name}" forever? You can't get it back.${blog}`)) return;
+    if (pendingEntry.current?.entry.id === entry.id) { clearTimeout(pendingEntry.current.timer); pendingEntry.current = null; }
+    await removeEntry(entry.id);
+    setEntries((es) => es.filter((e) => e.id !== entry.id));
+    setEntryId(null);
+    send();
+  };
+
+  const goWriting = (on) => {
+    flush();
+    window.location.hash = on ? 'writing' : '';
+    setWriting(on);
+  };
+  useEffect(() => {
+    const onHash = () => setWriting(window.location.hash === '#writing');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
   const saveLabel = saveState === 'saving' ? 'Saving...'
     : saveState === 'error' ? 'Not saved! Tell a grown-up.'
       : SAVE_LABELS[syncState];
@@ -190,7 +263,11 @@ export default function Studio() {
   const open = books.find((b) => b.id === openId);
   return (
     <>
-      {open ? (
+      {writing ? (
+        <Writing entries={entries} openId={entryId} saveLabel={saveLabel} saveOk={saveOk}
+          onOpen={(id) => { flushEntry(); setEntryId(id); }} onCreate={createEntry} onChange={changeEntry}
+          onDelete={deleteEntry} onDrawing={() => goWriting(false)} />
+      ) : open ? (
         <Editor
           // A fresh editor when the book is swapped for another device's version.
           key={`${open.id}:${arrivals[open.id] || 0}`}
@@ -205,7 +282,7 @@ export default function Studio() {
       ) : (
         <Bookshelf books={books} photos={photos} saveLabel={saveLabel} saveOk={saveOk}
           onOpen={setOpenId} onCreate={createBook} onDelete={deleteBook}
-          onAddPhotos={addPhotos} onDeletePhoto={deletePhoto} />
+          onAddPhotos={addPhotos} onDeletePhoto={deletePhoto} onWriting={() => goWriting(true)} />
       )}
       {notice && (
         <div className="gn-toast" role="status">

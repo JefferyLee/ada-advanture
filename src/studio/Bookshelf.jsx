@@ -21,7 +21,7 @@ export const PhotoTag = ({ photo }) => (photo.usedAt
   : <span className="gn-photo-tag">New</span>);
 
 export default function Bookshelf({
-  books, photos, saveLabel, saveOk, onOpen, onCreate, onDelete, onAddPhotos, onDeletePhoto,
+  books, photos, saveLabel, saveOk, onOpen, onCreate, onDelete, onAddPhotos, onDeletePhoto, onWriting,
 }) {
   const [look, setLookState] = useState(getLook);
   const pickLook = (id) => { setLook(id); setLookState(id); };
@@ -34,6 +34,7 @@ export default function Bookshelf({
         <span className="gn-saved" role="status">
           {saveOk && <Icon name="check" size={20} stroke={2.8} />} {saveLabel}
         </span>
+        <button className="gn-bar-btn" onClick={onWriting}>✏️ Writing Studio</button>
         <span className="gn-look" role="group" aria-label="Look">
           Look:
           {LOOKS.map((l) => (
@@ -67,6 +68,7 @@ export default function Bookshelf({
                   <span className="gn-cover-tag">EPISODE {book.number}</span>
                   <span className="gn-cover-title">{book.title.trim() || 'Untitled'}</span>
                   <span className="gn-cover-meta">{pages} {pages === 1 ? 'page' : 'pages'}</span>
+                  {book.published && <span className="gn-cover-public">🌍 Published</span>}
                 </button>
                 <button className="gn-cover-delete" onClick={() => onDelete(book)}
                   aria-label={`Delete episode ${book.number}`}>
