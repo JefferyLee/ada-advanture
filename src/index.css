@@ -3,8 +3,22 @@ body {
     margin: 0;
     padding: 20px;
     background-color: #1a1a2e;
+    /* Faint stars, gears and a punch card, for Ada Lovelace (public/home-bg.svg). */
+    background-image: url('/home-bg.svg');
+    background-attachment: fixed;
   }
   
   h1 {
     color: #333;
   }
+/* "Named after Ada Lovelace": in a corner on wide screens, at the end of the page on narrow ones. */
+.lovelace {
+  display: flex; align-items: center; gap: 10px; padding: 6px 16px 6px 6px; border-radius: 999px;
+  background: rgba(17, 24, 39, 0.88); border: 1px solid #374151; color: #d1d5db; font-size: .8rem; text-decoration: none;
+}
+.lovelace:hover { border-color: #fbbf24; }
+.lovelace img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid #fbbf24; }
+.lovelace b { color: #fbbf24; }
+@media (min-width: 1300px) {
+  .lovelace { position: fixed; left: 20px; bottom: 20px; z-index: 50; }
+}

@@ -676,3 +676,6 @@ html[data-theme='crafty'] .gn-modal-head .gn-h2 { color: #2e2417; }
   font-size: 24px; line-height: 1.5;
 }
 .gn-write-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Ada's portrait at the top of the bookshelf. */
+.gn-avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 3px solid var(--wordmark); flex: 0 0 auto; }

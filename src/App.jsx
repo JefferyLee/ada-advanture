@@ -296,6 +296,11 @@ function Home({ onSelectGame }) {
           </Section>
         </div>
       </div>
+      {/* Portrait: Alfred Edward Chalon, about 1840, Science Museum Group (public domain, via Wikimedia Commons). */}
+      <a className="lovelace" href="https://en.wikipedia.org/wiki/Ada_Lovelace" target="_blank" rel="noreferrer">
+        <img src="/lovelace.jpg" alt="Ada Lovelace, painted by Alfred Edward Chalon around 1840" />
+        <span>Named after <b>Ada Lovelace</b>, the first programmer</span>
+      </a>
     </div>
   );
 }
@@ -305,7 +310,7 @@ function Home({ onSelectGame }) {
 function Section({ title, note, grow, children }) {
   return (
     <section style={{ display:'flex', flexDirection:'column', border:'2px solid #374151', borderRadius:'20px', ...(grow ? { flex:'1 1 340px' } : {}),
-      padding:'18px 18px 22px', background:'#ffffff06' }}>
+      padding:'18px 18px 22px', background:'rgba(26, 26, 46, 0.9)' }}>
       <h2 style={{ fontSize:'1rem', color:'#fbbf24', letterSpacing:'2px', textTransform:'uppercase', margin:'0 0 16px', textAlign:'center' }}>
         {title}
       </h2>

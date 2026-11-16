@@ -6,6 +6,10 @@ import { HELPER_NAME } from './HelperBar.jsx';
 import { LOOKS, getLook, setLook } from './look.js';
 
 const COVER_COLORS = ['purple', 'orange', 'yellow'];
+// Ada's portrait at the top of the shelf. It is kept in the studio's own
+// picture storage (R2 images/ada-avatar-v1), not in this repo or the public
+// site, so only someone with the PIN or the family login can see it.
+const ADA_AVATAR = 'ada-avatar-v1';
 
 export function PhotoThumb({ imageId }) {
   const url = useStoredImage(imageId);
@@ -26,10 +30,12 @@ export default function Bookshelf({
   const [look, setLookState] = useState(getLook);
   const pickLook = (id) => { setLook(id); setLookState(id); };
   const fileRef = useRef(null);
+  const avatar = useStoredImage(ADA_AVATAR);
 
   return (
     <div className="gn-app">
       <header className="gn-topbar">
+        {avatar && <img className="gn-avatar" src={avatar} alt="Ada" />}
         <span className="gn-wordmark gn-grow">Ada's Graphic Novel Creator</span>
         <span className="gn-saved" role="status">
           {saveOk && <Icon name="check" size={20} stroke={2.8} />} {saveLabel}
