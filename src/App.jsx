@@ -80,16 +80,47 @@ function ScoreTable({ title, scores, showWave }) {
 
 /* ── Scratch game: a project on scratch.mit.edu, played in Scratch's own player ── */
 const SCRATCH_PROJECT = '1439703364';
+const panelText = { color:'#d1d5db', fontSize:'.9rem', lineHeight:'1.55', whiteSpace:'pre-wrap', overflowWrap:'anywhere', margin:0 };
+const panelHeading = { fontSize:'.75rem', textTransform:'uppercase', letterSpacing:'1px', color:'#fbbf24', margin:'18px 0 8px' };
 
+// As big as the window allows, with the project's Instructions and Notes and
+// Credits beside it (below it when there is no room).
 function ScratchGame() {
+  const [info, setInfo] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/scratch').then(r => (r.ok ? r.json() : null)).then(setInfo).catch(() => {});
+  }, []);
+
   return (
-    <iframe
-      src={`https://scratch.mit.edu/projects/${SCRATCH_PROJECT}/embed`}
-      title="Scratch Game"
-      allowFullScreen
-      style={{ width:'min(800px, calc(100vw - 40px), calc((100vh - 300px) * 485 / 402))', aspectRatio:'485 / 402',
-        border:'none', borderRadius:'12px', background:'#1f2937' }}
-    />
+    <div style={{ display:'flex', flexWrap:'wrap', gap:'20px', justifyContent:'center', alignItems:'flex-start' }}>
+      <iframe
+        src={`https://scratch.mit.edu/projects/${SCRATCH_PROJECT}/embed`}
+        title="Scratch Game"
+        allowFullScreen
+        // The stage is 4:3 under Scratch's 52px bar of buttons.
+        style={{ '--w':'min(calc(100vw - 40px), calc((100vh - 132px) * 4 / 3))', width:'var(--w)', height:'calc(var(--w) * 3 / 4 + 52px)',
+          border:'none', borderRadius:'12px', background:'#1f2937' }}
+      />
+      {info && (
+        <aside style={{ flex:'1 1 280px', maxWidth:'420px', maxHeight:'calc(100vh - 80px)', overflowY:'auto',
+          background:'#1f2937', border:'1px solid #374151', borderRadius:'12px', padding:'4px 18px 18px' }}>
+          <h2 style={{ fontSize:'1.2rem', color:'#e5e7eb', margin:'16px 0 0' }}>{info.title}</h2>
+          {info.instructions && (
+            <>
+              <h3 style={panelHeading}>Instructions</h3>
+              <p style={panelText}>{info.instructions}</p>
+            </>
+          )}
+          {info.notes && (
+            <>
+              <h3 style={panelHeading}>Notes and Credits</h3>
+              <p style={panelText}>{info.notes}</p>
+            </>
+          )}
+        </aside>
+      )}
+    </div>
   );
 }
 
@@ -191,7 +222,9 @@ function App() {
     );
   }
 
-  // Playing Forest or the Scratch game — game + chat
+  // Playing a game: Forest with the chat under it. The Scratch game fills the
+  // window, so the chat is hidden there; it keeps running so the player still
+  // shows as online.
   return (
     <div>
       <div style={{ textAlign:'left', padding:'8px 20px' }}>
@@ -203,10 +236,17 @@ function App() {
           Playing as <span style={{ color:'#fbbf24' }}>{playerName}</span>
         </span>
       </div>
-      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'center', minHeight:'calc(100vh - 220px)', paddingTop:'8px' }}>
-        {selectedGame === 'scratch' ? <ScratchGame /> : <ForestGame playerName={playerName} />}
-        <OnlineChat playerName={playerName} />
-      </div>
+      {selectedGame === 'scratch' ? (
+        <>
+          <ScratchGame />
+          <div hidden><OnlineChat playerName={playerName} /></div>
+        </>
+      ) : (
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'center', minHeight:'calc(100vh - 220px)', paddingTop:'8px' }}>
+          <ForestGame playerName={playerName} />
+          <OnlineChat playerName={playerName} />
+        </div>
+      )}
     </div>
   );
 }
