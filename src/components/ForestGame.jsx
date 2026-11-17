@@ -23,6 +23,10 @@ const rectCollision = (r1, r2) =>
   r1.x < r2.x + r2.width && r1.x + r1.width > r2.x &&
   r1.y < r2.y + r2.height && r1.y + r1.height > r2.y;
 
+// The game is 800x400. On a small screen it is drawn smaller, leaving room for
+// the line above it and the touch buttons below (155px together).
+const fitScale = () => Math.max(0.3, Math.min(1, (window.innerWidth - 16) / 800, (window.innerHeight - 155) / 400));
+
 const drawButton = (ctx, text, x, y, w, h) => {
   ctx.fillStyle = 'green';
   ctx.fillRect(x, y, w, h);
@@ -61,6 +65,13 @@ const ForestGame = ({ playerName: propPlayerName }) => {
   const [showHighScores,    setShowHighScores]    = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [adminPassword,     setAdminPassword]     = useState('');
+  const [scale,             setScale]             = useState(fitScale);
+
+  useEffect(() => {
+    const onResize = () => setScale(fitScale());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // ── Audio + image setup ─────────────────────────────────────────────────
   useEffect(() => {
@@ -271,8 +282,9 @@ const ForestGame = ({ playerName: propPlayerName }) => {
     if (gameActiveRef.current) return; // only react when game is over
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    // Back to canvas pixels: the canvas may be drawn smaller (see fitScale).
+    const x = (event.clientX - rect.left) * canvas.width / rect.width;
+    const y = (event.clientY - rect.top) * canvas.height / rect.height;
     const lx = canvas.width / 2 - 190, rx = canvas.width / 2 + 10;
     const row1 = canvas.height * 0.65, row2 = row1 + 50;
     const inLeft  = x > lx && x < lx + 180;
@@ -299,10 +311,15 @@ const ForestGame = ({ playerName: propPlayerName }) => {
   const release = (key) => () => { controlsRef.current[key] = false; };
 
   const isPlaying = gameState.gameStarted && !gameState.gameOver;
+  const portrait = scale < 0.7 && window.innerHeight > window.innerWidth;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div className="game-container">
+      {portrait && (
+        <p style={{ color: '#9ca3af', fontSize: '.85rem', margin: '0 0 8px' }}>📱 Turn your phone sideways for a bigger game</p>
+      )}
+      <div style={{ width: 800 * scale, height: 400 * scale }}>
+      <div className="game-container" style={{ transform: `scale(${scale})`, transformOrigin: '0 0' }}>
         <canvas
           ref={canvasRef}
           width={800}
@@ -342,12 +359,13 @@ const ForestGame = ({ playerName: propPlayerName }) => {
           </div>
         )}
       </div>
+      </div>
 
       {/* Touch controls — visible during gameplay, optimized for iPad */}
       {isPlaying && (
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          width: '800px', padding: '10px 20px', boxSizing: 'border-box',
+          width: 'min(800px, calc(100vw - 16px))', padding: '10px 12px', boxSizing: 'border-box',
           background: 'rgba(0,0,0,0.3)', borderRadius: '0 0 8px 8px', gap: '10px',
         }}>
           {/* Left / Right */}
@@ -380,11 +398,11 @@ const ForestGame = ({ playerName: propPlayerName }) => {
 };
 
 const btnStyle = {
-  fontSize: '22px', padding: '14px 20px', minWidth: '60px',
+  fontSize: '22px', padding: '14px 16px', minWidth: '60px',
   background: 'rgba(255,255,255,0.18)', color: 'white',
   border: '2px solid rgba(255,255,255,0.4)', borderRadius: '8px',
   cursor: 'pointer', touchAction: 'none', userSelect: 'none',
-  WebkitUserSelect: 'none',
+  WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
 };
 
 export default ForestGame;

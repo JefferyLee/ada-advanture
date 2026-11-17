@@ -4,8 +4,10 @@ const SESSION_ID = Math.random().toString(36).slice(2);
 
 // The chat, folded into a bubble in the corner that shows how many people are
 // online and a dot when there are new messages; tap it to open. Reading needs
-// no name; the first message asks for one (onNeedName), then goes out.
-function OnlineChat({ playerName, onNeedName }) {
+// no name; the first message asks for one (onNeedName), then goes out. While
+// a game is played it sits smaller in the top corner (top), clear of the game's
+// own buttons at the bottom of a phone.
+function OnlineChat({ playerName, onNeedName, top = false }) {
   const [location, setLocation]   = useState('Unknown');
   const [players, setPlayers]     = useState([]);
   const [messages, setMessages]   = useState([]);
@@ -87,12 +89,14 @@ function OnlineChat({ playerName, onNeedName }) {
   }, [playerName, sendMessage]);
 
   const unread = seen !== null && messages.length > seen;
+  const corner = top ? { right:'12px', top:'8px' } : { right:'20px', bottom:'20px' };
+  const size = top ? '48px' : '64px';
 
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} aria-label={`Open the chat. ${players.length} online${unread ? ', new messages' : ''}`}
-        style={{ position:'fixed', right:'20px', bottom:'20px', zIndex:100, width:'64px', height:'64px', borderRadius:'50%',
-          border:'none', background:'#2563eb', color:'#fff', fontSize:'1.6rem', cursor:'pointer', boxShadow:'0 6px 20px #0008' }}>
+        style={{ position:'fixed', ...corner, zIndex:100, width:size, height:size, borderRadius:'50%',
+          border:'none', background:'#2563eb', color:'#fff', fontSize: top ? '1.2rem' : '1.6rem', cursor:'pointer', boxShadow:'0 6px 20px #0008' }}>
         💬
         <span style={{ position:'absolute', right:'-4px', bottom:'-4px', minWidth:'24px', height:'24px', padding:'0 6px', borderRadius:'12px',
           background:'#16a34a', border:'2px solid #1a1a2e', fontSize:'.75rem', fontWeight:'bold', lineHeight:'20px', boxSizing:'border-box' }}>
@@ -104,7 +108,7 @@ function OnlineChat({ playerName, onNeedName }) {
   }
 
   return (
-    <div role="dialog" aria-label="Chat" style={{ position:'fixed', right:'20px', bottom:'20px', zIndex:100, display:'flex', flexDirection:'column',
+    <div role="dialog" aria-label="Chat" style={{ position:'fixed', ...corner, zIndex:100, display:'flex', flexDirection:'column',
       width:'min(360px, calc(100vw - 40px))', height:'min(480px, calc(100vh - 40px))', background:'#12122a', border:'1px solid #2a2a4a',
       borderRadius:'14px', boxShadow:'0 10px 40px #000a', overflow:'hidden', color:'white', fontFamily:'Arial, sans-serif', fontSize:'13px' }}>
 

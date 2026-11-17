@@ -105,6 +105,32 @@ const panelHeading = { fontSize:'.75rem', textTransform:'uppercase', letterSpaci
 const barButton = { display:'flex', alignItems:'center', justifyContent:'center', width:'40px', height:'36px', border:'1px solid #374151',
   borderRadius:'8px', background:'#111827', cursor:'pointer', fontSize:'1.2rem' };
 
+const keyButton = { width:'64px', height:'64px', border:'2px solid #4b5563', borderRadius:'14px', background:'#1f2937', color:'#e5e7eb',
+  fontSize:'1.3rem', fontWeight:'bold', cursor:'pointer', touchAction:'none', userSelect:'none', WebkitUserSelect:'none', WebkitTouchCallout:'none' };
+
+// Scratch's names for keys: the browser's name for each (what the player is
+// sent) and what its button shows. Other keys are letters and digits.
+const SCRATCH_KEYS = {
+  'left arrow': ['ArrowLeft', '◀'], 'up arrow': ['ArrowUp', '▲'], 'down arrow': ['ArrowDown', '▼'], 'right arrow': ['ArrowRight', '▶'],
+  space: [' ', 'Space'], enter: ['Enter', 'Enter'],
+};
+const ARROWS = ['left arrow', 'up arrow', 'down arrow', 'right arrow'];
+
+// The keys a project listens for ("when key pressed" and "key pressed?"), so a
+// phone can show a button for each: the arrows on one side, the rest on the other.
+function projectKeys(project) {
+  const found = new Set();
+  for (const target of project.targets ?? []) {
+    for (const block of Object.values(target.blocks ?? {})) {
+      if (block?.opcode === 'event_whenkeypressed' || block?.opcode === 'sensing_keyoptions') found.add(block.fields?.KEY_OPTION?.[0]);
+    }
+  }
+  return {
+    arrows: ARROWS.filter(k => found.has(k)),
+    others: [...found].filter(k => k && k !== 'any' && !ARROWS.includes(k)),
+  };
+}
+
 // The player script is big (about 2 MB), so it is only loaded when the game is opened.
 let scaffoldingLoaded = null;
 function loadScaffolding() {
@@ -122,8 +148,13 @@ function loadScaffolding() {
 // Credits beside it (below it when there is no room). A round starts with the
 // green flag and ends when the project stops, by itself (game over) or with the
 // stop sign; then its "score" variable goes on the Scratch Game leaderboard.
+// On a touch screen the keys the project uses are buttons beside the stage
+// (under it when the phone is upright).
 function ScratchGame({ playerName }) {
   const [info, setInfo] = useState(null);
+  const [keys, setKeys] = useState({ arrows: [], others: [] });
+  const [touch] = useState(() => window.matchMedia?.('(pointer: coarse)').matches ?? false);
+  const [landscape, setLandscape] = useState(() => window.innerWidth > window.innerHeight);
   const [state, setState] = useState('loading'); // loading | ready | failed
   const [saved, setSaved] = useState(null); // the last score saved
   const stageRef = useRef(null);
@@ -131,6 +162,9 @@ function ScratchGame({ playerName }) {
 
   useEffect(() => {
     fetch('/api/scratch').then(r => (r.ok ? r.json() : null)).then(setInfo).catch(() => {});
+    const onResize = () => setLandscape(window.innerWidth > window.innerHeight);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
   useEffect(() => {
@@ -167,7 +201,9 @@ function ScratchGame({ playerName }) {
       player.vm.runtime.on('PROJECT_RUN_STOP', endRound);
       const res = await fetch('/api/scratch?project');
       if (!res.ok) throw new Error('project did not load');
-      await player.loadProject(await res.arrayBuffer());
+      const project = await res.arrayBuffer();
+      try { setKeys(projectKeys(JSON.parse(new TextDecoder().decode(project)))); } catch { /* no buttons */ }
+      await player.loadProject(project);
       if (!alive) return;
       playerRef.current = player;
       setState('ready');
@@ -198,25 +234,57 @@ function ScratchGame({ playerName }) {
     document.activeElement?.blur();
   };
 
+  // A key button holds its key down for as long as it is pressed.
+  const sendKey = (key, isDown) => (e) => {
+    e.preventDefault();
+    playerRef.current?.vm.postIOData('keyboard', { key: SCRATCH_KEYS[key]?.[0] ?? key, isDown });
+  };
+  const pad = touch && keys.arrows.length + keys.others.length > 0;
+  const label = (k) => SCRATCH_KEYS[k]?.[1] ?? k.toUpperCase();
+  const keyGroup = (list, style) => (
+    <div style={{ display:'flex', gap:'8px', ...style }}>
+      {pad && list.map(k => (
+        <button key={k} aria-label={k} style={{ ...keyButton, fontSize: label(k).length > 1 ? '1rem' : keyButton.fontSize }} onContextMenu={e => e.preventDefault()}
+          onPointerDown={sendKey(k, true)} onPointerUp={sendKey(k, false)}
+          onPointerCancel={sendKey(k, false)} onPointerLeave={sendKey(k, false)}>
+          {label(k)}
+        </button>
+      ))}
+    </div>
+  );
+  const groupWidth = (list) => (list.length ? list.length * 72 - 8 : 0);
+  // The stage is as big as the window allows, leaving room for the buttons.
+  const width = !pad ? 'min(calc(100vw - 40px), calc((100vh - 132px) * 4 / 3))'
+    : landscape ? `min(calc(100vw - ${64 + groupWidth(keys.arrows) + groupWidth(keys.others)}px), calc((100vh - 132px) * 4 / 3))`
+    : 'min(calc(100vw - 40px), calc((100vh - 216px) * 4 / 3))';
+
+  const upright = pad && !landscape;
+
   return (
     <div style={{ display:'flex', flexWrap:'wrap', gap:'20px', justifyContent:'center', alignItems:'flex-start' }}>
-      {/* The stage is 4:3 under a 52px bar with the green flag and the stop sign. */}
-      <div style={{ '--w':'min(calc(100vw - 40px), calc((100vh - 132px) * 4 / 3))', width:'var(--w)',
-        border:'1px solid #374151', borderRadius:'12px', background:'#1f2937', overflow:'hidden' }}>
-        <div style={{ height:'52px', display:'flex', alignItems:'center', gap:'8px', padding:'0 10px', boxSizing:'border-box' }}>
-          <button aria-label="Green flag" title="Start" onClick={greenFlag} disabled={state !== 'ready'} style={barButton}>
-            <span style={{ color:'#4ade80' }}>⚑</span>
-          </button>
-          <button aria-label="Stop" title="Stop" onClick={stop} disabled={state !== 'ready'} style={barButton}>
-            <span style={{ color:'#f87171' }}>⬣</span>
-          </button>
-          <span style={{ color:'#9ca3af', fontSize:'.85rem', marginLeft:'6px' }}>
-            {state === 'loading' && 'Loading the game...'}
-            {state === 'failed' && "I can't load the game right now. Try again later."}
-            {state === 'ready' && saved !== null && <>Score saved: <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{saved}</span></>}
-          </span>
+      {/* The buttons are beside the stage, or under it when the phone is upright. The
+          order is set by style, so turning the phone never remounts the player. */}
+      <div style={upright ? { display:'flex', flexWrap:'wrap', gap:'10px', width } : { display:'flex', alignItems:'center', gap: pad ? '12px' : 0 }}>
+        {keyGroup(keys.arrows, { order: upright ? 1 : 0 })}
+        {/* The stage is 4:3 under a 52px bar with the green flag and the stop sign. */}
+        <div style={{ '--w':width, width:'var(--w)', flexShrink:0, order: upright ? 0 : 1,
+          border:'1px solid #374151', borderRadius:'12px', background:'#1f2937', overflow:'hidden' }}>
+          <div style={{ height:'52px', display:'flex', alignItems:'center', gap:'8px', padding:'0 10px', boxSizing:'border-box' }}>
+            <button aria-label="Green flag" title="Start" onClick={greenFlag} disabled={state !== 'ready'} style={barButton}>
+              <span style={{ color:'#4ade80' }}>⚑</span>
+            </button>
+            <button aria-label="Stop" title="Stop" onClick={stop} disabled={state !== 'ready'} style={barButton}>
+              <span style={{ color:'#f87171' }}>⬣</span>
+            </button>
+            <span style={{ color:'#9ca3af', fontSize:'.85rem', marginLeft:'6px' }}>
+              {state === 'loading' && 'Loading the game...'}
+              {state === 'failed' && "I can't load the game right now. Try again later."}
+              {state === 'ready' && saved !== null && <>Score saved: <span style={{ color:'#fbbf24', fontWeight:'bold' }}>{saved}</span></>}
+            </span>
+          </div>
+          <div ref={stageRef} aria-label="Scratch Game" style={{ width:'100%', height:'calc(var(--w) * 3 / 4)', background:'#fff' }} />
         </div>
-        <div ref={stageRef} aria-label="Scratch Game" style={{ width:'100%', height:'calc(var(--w) * 3 / 4)', background:'#fff' }} />
+        {keyGroup(keys.others, { order: 2, marginLeft: upright ? 'auto' : 0 })}
       </div>
       {info && (
         <aside style={{ flex:'1 1 280px', maxWidth:'420px', maxHeight:'calc(100vh - 80px)', overflowY:'auto',
@@ -382,6 +450,10 @@ function App() {
   // Ask for a name, then carry on with what needed it (if the popup isn't closed with "Not now").
   const askName = useCallback((then) => setAsking({ then }), []);
 
+  // Opening a game (or going back) starts at the top, like a new page, not
+  // where the home page was scrolled to.
+  useEffect(() => { window.scrollTo(0, 0); }, [selectedGame]);
+
   const handleEnter = (name) => {
     setPlayerName(name);
     try { localStorage.setItem('arcade_player_name', name); } catch { /* still works for this visit */ }
@@ -407,7 +479,7 @@ function App() {
     setSelectedGame(game);
   };
 
-  const chat = <OnlineChat playerName={playerName} onNeedName={askName} />;
+  const chat = <OnlineChat playerName={playerName} onNeedName={askName} top={!!selectedGame} />;
   const prompt = asking && <NamePrompt initial={playerName} onEnter={handleEnter} onCancel={() => setAsking(null)} />;
 
   // Home: the studios and the leaderboards, with the chat folded into a bubble in the corner.
@@ -425,7 +497,7 @@ function App() {
   return (
     <div>
       {/* The same line as on every page: Home, then where you are. */}
-      <div style={{ textAlign:'left', padding:'8px 20px', fontSize:'.8rem', color:'#6b7280' }}>
+      <div style={{ textAlign:'left', padding:'8px 68px 8px 20px', fontSize:'.8rem', color:'#6b7280' }}>
         <a href="/" onClick={e => { e.preventDefault(); setSelectedGame(null); }}
           style={{ color:'#9ca3af', textDecoration:'none' }}>
           🏠 Home

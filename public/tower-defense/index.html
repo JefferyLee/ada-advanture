@@ -16,8 +16,12 @@ body {
 }
 h1 { font-size: 1.5rem; color: #fbbf24; letter-spacing: 3px;
   text-transform: uppercase; text-shadow: 0 0 30px #fbbf2466; }
-#container { display: flex; gap: 10px; align-items: flex-start; }
-canvas { display: block; border: 2px solid #374151; border-radius: 4px; cursor: crosshair; }
+#container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; align-items: flex-start; max-width: 100%; padding: 0 8px; }
+/* The map shrinks to fit a phone (taps are scaled back to cells), and
+   manipulation stops a quick second tap from zooming the page. */
+canvas { display: block; border: 2px solid #374151; border-radius: 4px; cursor: crosshair;
+  max-width: 100%; max-height: calc(100vh - 48px); width: auto; height: auto; touch-action: manipulation; }
+button { touch-action: manipulation; }
 
 #sidebar { width: 186px; display: flex; flex-direction: column; gap: 7px; max-height: 620px; overflow-y: auto; }
 .panel { background: #1f2937; border: 1px solid #374151; border-radius: 8px; padding: 9px; }
@@ -132,6 +136,25 @@ canvas { display: block; border: 2px solid #374151; border-radius: 4px; cursor: 
 .lb-close-btn { padding: 10px 30px; font-size: .9rem; font-weight: bold;
   background: #374151; color: #e5e7eb; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
 .lb-close-btn:hover { background: #4b5563; }
+
+/* Phones: the panels go under the map, as wide as it, the towers two by two. */
+@media (max-width: 700px) {
+  #sidebar, #online-panel { width: 100%; max-height: none; }
+  #tower-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  #tower-buttons .tbtn { margin-bottom: 0; }
+  #lb-table { min-width: 0; }
+  #lb-table th, #lb-table td { padding: 5px 6px; }
+}
+
+/* A phone on its side: no big title, and the map leaves room for the towers
+   beside it, so the whole game fits without scrolling. */
+@media (max-height: 500px) and (orientation: landscape) {
+  h1 { display: none; }
+  canvas { max-width: calc(100vw - 220px); }
+  #sidebar { width: 186px; max-height: calc(100vh - 48px); }
+  #tower-buttons { display: block; }
+  #tower-buttons .tbtn { margin-bottom: 4px; }
+}
 </style>
 </head>
 <body>
@@ -998,9 +1021,17 @@ function update(dt) {
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
-canvas.addEventListener('mousemove',e=>{
+// The cell under a click or tap. On a small screen the canvas is drawn smaller
+// than its pixels, so the point is scaled back first.
+function cellAt(e) {
   const rect=canvas.getBoundingClientRect();
-  const col=Math.floor((e.clientX-rect.left)/CELL),row=Math.floor((e.clientY-rect.top)/CELL);
+  const scale=canvas.width/canvas.clientWidth;
+  const x=(e.clientX-rect.left-canvas.clientLeft)*scale, y=(e.clientY-rect.top-canvas.clientTop)*scale;
+  return { col: Math.floor(x/CELL), row: Math.floor(y/CELL) };
+}
+
+canvas.addEventListener('mousemove',e=>{
+  const {col,row}=cellAt(e);
   hovCell=(col>=0&&col<COLS&&row>=0&&row<ROWS)?{col,row}:null;
 });
 canvas.addEventListener('mouseleave',()=>{ hovCell=null; });
@@ -1008,8 +1039,7 @@ canvas.addEventListener('mouseleave',()=>{ hovCell=null; });
 canvas.addEventListener('click',e=>{
   if (gameOver||gameWon) return;
   resumeAC();
-  const rect=canvas.getBoundingClientRect();
-  const col=Math.floor((e.clientX-rect.left)/CELL),row=Math.floor((e.clientY-rect.top)/CELL);
+  const {col,row}=cellAt(e);
   if (col<0||col>=COLS||row<0||row>=ROWS) return;
 
   const existing=towers.find(t=>t.col===col&&t.row===row);
@@ -1034,8 +1064,7 @@ canvas.addEventListener('click',e=>{
 canvas.addEventListener('contextmenu',e=>{
   e.preventDefault();
   if (gameOver||gameWon) return;
-  const rect=canvas.getBoundingClientRect();
-  const col=Math.floor((e.clientX-rect.left)/CELL),row=Math.floor((e.clientY-rect.top)/CELL);
+  const {col,row}=cellAt(e);
   sellTowerAt(col,row);
 });
 
@@ -1266,7 +1295,7 @@ loadAllAssets().then(()=>{
       <h2>⚔ Tower Defense</h2>
       <p>Place towers on grass tiles to stop enemies reaching your base.<br>
       <b>6 tower types</b> with 2 upgrade levels. <b>Armored</b> enemies resist most damage — use Cannon or Mortar to pierce.</p>
-      <p class="hint">Left-click to place · Click tower to select/upgrade · Right-click to sell</p>
+      <p class="hint">Click or tap to place · Click or tap a tower to upgrade or sell it</p>
       <p style="color:#fbbf24;font-size:1.1rem;margin-top:8px">Playing as <strong>${esc(playerName)}</strong></p>
       <button id="start-btn">Start Game</button>`;
     document.getElementById('start-btn').addEventListener('click', launchGame);
@@ -1276,7 +1305,7 @@ loadAllAssets().then(()=>{
       <h2>⚔ Tower Defense</h2>
       <p>Place towers on grass tiles to stop enemies reaching your base.<br>
       <b>6 tower types</b> with 2 upgrade levels. <b>Armored</b> enemies resist most damage — use Cannon or Mortar to pierce.</p>
-      <p class="hint">Left-click to place · Click tower to select/upgrade · Right-click to sell</p>
+      <p class="hint">Click or tap to place · Click or tap a tower to upgrade or sell it</p>
       <div id="name-form">
         <input id="name-input" type="text" placeholder="Your name" maxlength="10" autocomplete="off">
         <button id="start-btn">Start Game</button>
